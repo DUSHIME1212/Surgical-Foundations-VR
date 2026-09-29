@@ -191,38 +191,3 @@ Built from the headset UI prototype: dark teal glass panels, mint accent `#5CE0C
 | Visible triangles | ≈ 400k |
 | Lightmaps | Non-directional, ≤ 1024² per room |
 | Heavy effects | Laminar airflow and post-processing off on Quest by default |
-
-## Roadmap
-
-- [x] Project structure, scene architecture, additive stage loading
-- [x] 41 asset-list models as real-scale placeholders
-- [x] All 16 UI screens, HUD, pause, subtitles, toasts
-- [x] Baked lighting, audio library, 20 custom shaders
-- [x] Real nurse and anaesthetist models
-- [ ] Step detection and on-device scoring (FR-17)
-- [ ] Pose recorder (≥ 30 Hz) and offline sync queue (FR-25)
-- [ ] ASP.NET Core backend, xAPI / SCORM
-- [ ] Soft-body tissue (Obi Softbody), final art and recorded voice-over
-- [ ] R2: vessel-injury branch, tissue tearing, camera assistant
-
-Full sprint plan: [Docs/ExecutionPlan.md](Docs/ExecutionPlan.md).
-
-## Documentation
-
-| Document | |
-|---|---|
-| [ExecutionPlan.md](Docs/ExecutionPlan.md) | Sprint plan, milestones, risks, progress |
-| [ProjectStructure.md](Docs/ProjectStructure.md) | Folders, naming, builders, lighting & audio model |
-| [Shaders.md](Docs/Shaders.md) | The 20 custom shaders and how to drive them |
-| [ThirdPartyAssets.md](Docs/ThirdPartyAssets.md) | Imported models, usage and licence tracking |
-
-## Credits
-
-- **Design & product:** Surgical Foundations team (@DUSHIME)
-- **Built with:** Unity 6, Universal Render Pipeline, XR Interaction Toolkit, XR Hands, OpenXR
-- **Third-party models:** see [Docs/ThirdPartyAssets.md](Docs/ThirdPartyAssets.md) — *sources and licences to be confirmed before release*
-- **Sounds and placeholder art:** original, generated for this project
-
-<div align="center">
-<sub>Built for training, not for clinical use.</sub>
-</div>

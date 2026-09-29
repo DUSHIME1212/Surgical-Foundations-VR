@@ -1,0 +1,242 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &3509875480198732604
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 5185997829322973716}
+  - component: {fileID: 774198338425187225}
+  - component: {fileID: 8509213226739695116}
+  m_Layer: 0
+  m_Name: PROP_OpenSurgerySet
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &5185997829322973716
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3509875480198732604}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 7184957518055453999}
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!65 &774198338425187225
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3509875480198732604}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 1.2342153, y: 0.06316984, z: 0.68081564}
+  m_Center: {x: 0, y: 0.03158492, z: 0}
+--- !u!114 &8509213226739695116
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3509875480198732604}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 616e5bcb71f990a4cb22572b2c9c0972, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: SurgicalFoundations.Runtime::SurgicalFoundations.Placeholders.PlaceholderInfo
+  assetId: PROP-X1
+  displayName: Open surgery instrument set
+  category: TrainingProp
+  release: 0
+  triangleBudget: 164590
+  buildNotes: "Imported. \u26A0 164k tris \u2014 too heavy for the theatre on Quest (400k scene budget). Used as skills-lab display only; decimate before wider use."
+  isPlaceholder: 0
+--- !u!1 &8004464130629203183
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 7184957518055453999}
+  m_Layer: 0
+  m_Name: Visual
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &7184957518055453999
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8004464130629203183}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 8947391629649835694}
+  m_Father: {fileID: 5185997829322973716}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1001 &8908467737742381381
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 7184957518055453999}
+    m_Modifications:
+    - target: {fileID: -8679921383154817045, guid: b79ad8c2dd916164d8ed8dec19991ca4, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0.07204068
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: b79ad8c2dd916164d8ed8dec19991ca4, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0.005454855
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: b79ad8c2dd916164d8ed8dec19991ca4, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0.008156717
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: b79ad8c2dd916164d8ed8dec19991ca4, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: b79ad8c2dd916164d8ed8dec19991ca4, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: b79ad8c2dd916164d8ed8dec19991ca4, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: b79ad8c2dd916164d8ed8dec19991ca4, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: b79ad8c2dd916164d8ed8dec19991ca4, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: b79ad8c2dd916164d8ed8dec19991ca4, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: b79ad8c2dd916164d8ed8dec19991ca4, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -6636109660245523497, guid: b79ad8c2dd916164d8ed8dec19991ca4, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: bc90a9087fbc16948abb22529b105bb6, type: 2}
+    - target: {fileID: -6636109660245523497, guid: b79ad8c2dd916164d8ed8dec19991ca4, type: 3}
+      propertyPath: 'm_Materials.Array.data[1]'
+      value: 
+      objectReference: {fileID: 2100000, guid: e27385ac25c013142a2b37694ab0aad9, type: 2}
+    - target: {fileID: -6291050020974004290, guid: b79ad8c2dd916164d8ed8dec19991ca4, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: e27385ac25c013142a2b37694ab0aad9, type: 2}
+    - target: {fileID: -5525669544971987592, guid: b79ad8c2dd916164d8ed8dec19991ca4, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: e27385ac25c013142a2b37694ab0aad9, type: 2}
+    - target: {fileID: -5525669544971987592, guid: b79ad8c2dd916164d8ed8dec19991ca4, type: 3}
+      propertyPath: 'm_Materials.Array.data[1]'
+      value: 
+      objectReference: {fileID: 2100000, guid: bc90a9087fbc16948abb22529b105bb6, type: 2}
+    - target: {fileID: -5368553391471518159, guid: b79ad8c2dd916164d8ed8dec19991ca4, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: bc90a9087fbc16948abb22529b105bb6, type: 2}
+    - target: {fileID: -4970291332782523421, guid: b79ad8c2dd916164d8ed8dec19991ca4, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: bc90a9087fbc16948abb22529b105bb6, type: 2}
+    - target: {fileID: -4408124097540450536, guid: b79ad8c2dd916164d8ed8dec19991ca4, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: bc90a9087fbc16948abb22529b105bb6, type: 2}
+    - target: {fileID: -4408124097540450536, guid: b79ad8c2dd916164d8ed8dec19991ca4, type: 3}
+      propertyPath: 'm_Materials.Array.data[1]'
+      value: 
+      objectReference: {fileID: 2100000, guid: e27385ac25c013142a2b37694ab0aad9, type: 2}
+    - target: {fileID: -3779331573580631309, guid: b79ad8c2dd916164d8ed8dec19991ca4, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: e27385ac25c013142a2b37694ab0aad9, type: 2}
+    - target: {fileID: -3779331573580631309, guid: b79ad8c2dd916164d8ed8dec19991ca4, type: 3}
+      propertyPath: 'm_Materials.Array.data[1]'
+      value: 
+      objectReference: {fileID: 2100000, guid: bc90a9087fbc16948abb22529b105bb6, type: 2}
+    - target: {fileID: 146880450286945535, guid: b79ad8c2dd916164d8ed8dec19991ca4, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: bc90a9087fbc16948abb22529b105bb6, type: 2}
+    - target: {fileID: 146880450286945535, guid: b79ad8c2dd916164d8ed8dec19991ca4, type: 3}
+      propertyPath: 'm_Materials.Array.data[1]'
+      value: 
+      objectReference: {fileID: 2100000, guid: e27385ac25c013142a2b37694ab0aad9, type: 2}
+    - target: {fileID: 919132149155446097, guid: b79ad8c2dd916164d8ed8dec19991ca4, type: 3}
+      propertyPath: m_Name
+      value: Surgery Tools
+      objectReference: {fileID: 0}
+    - target: {fileID: 945454400225530728, guid: b79ad8c2dd916164d8ed8dec19991ca4, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: bc90a9087fbc16948abb22529b105bb6, type: 2}
+    - target: {fileID: 945454400225530728, guid: b79ad8c2dd916164d8ed8dec19991ca4, type: 3}
+      propertyPath: 'm_Materials.Array.data[1]'
+      value: 
+      objectReference: {fileID: 2100000, guid: e27385ac25c013142a2b37694ab0aad9, type: 2}
+    - target: {fileID: 1512191506632812556, guid: b79ad8c2dd916164d8ed8dec19991ca4, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: e27385ac25c013142a2b37694ab0aad9, type: 2}
+    - target: {fileID: 1512191506632812556, guid: b79ad8c2dd916164d8ed8dec19991ca4, type: 3}
+      propertyPath: 'm_Materials.Array.data[1]'
+      value: 
+      objectReference: {fileID: 2100000, guid: bc90a9087fbc16948abb22529b105bb6, type: 2}
+    - target: {fileID: 7076017418536927497, guid: b79ad8c2dd916164d8ed8dec19991ca4, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: e27385ac25c013142a2b37694ab0aad9, type: 2}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: b79ad8c2dd916164d8ed8dec19991ca4, type: 3}
+--- !u!4 &8947391629649835694 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: b79ad8c2dd916164d8ed8dec19991ca4, type: 3}
+  m_PrefabInstance: {fileID: 8908467737742381381}
+  m_PrefabAsset: {fileID: 0}

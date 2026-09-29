@@ -87,7 +87,7 @@ namespace SurgicalFoundations.Core
         public void PlaceRig(string sceneName)
         {
             PlayerSpawnPoint best = null;
-            foreach (var sp in FindObjectsByType<PlayerSpawnPoint>(FindObjectsSortMode.None))
+            foreach (var sp in FindObjectsByType<PlayerSpawnPoint>())
             {
                 if (sp.gameObject.scene.name != sceneName || !sp.isActiveAndEnabled) continue;
                 if (best == null || sp.Priority > best.Priority) best = sp;

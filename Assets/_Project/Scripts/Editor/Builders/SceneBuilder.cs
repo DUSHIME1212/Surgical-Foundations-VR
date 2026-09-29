@@ -2,7 +2,9 @@ using System.Collections.Generic;
 using System.IO;
 using SurgicalFoundations.Audio;
 using SurgicalFoundations.Core;
+using SurgicalFoundations.Interaction;
 using SurgicalFoundations.Lighting;
+using SurgicalFoundations.Rendering;
 using SurgicalFoundations.Scenario;
 using SurgicalFoundations.UI;
 using UnityEditor;
@@ -17,6 +19,7 @@ using UnityEngine.UI;
 using UnityEngine.XR.Interaction.Toolkit;
 using UnityEngine.XR.Interaction.Toolkit.Locomotion.Teleportation;
 using UnityEngine.XR.Interaction.Toolkit.UI;
+using TMPro;
 
 namespace SurgicalFoundations.EditorTools
 {
@@ -42,6 +45,7 @@ namespace SurgicalFoundations.EditorTools
         public static void BuildAll()
         {
             UIKit.Init(UIScreensBuilder.EnsureTheme());
+            if (!PrepareEditorScenes(out var reopen)) return;
             var previouslyActive = SceneManager.GetActiveScene();
 
             Bootstrap();
@@ -53,13 +57,78 @@ namespace SurgicalFoundations.EditorTools
             StageOperate();
             StageClose();
             ReplayViewer();
+            ShaderGallery();
             RegisterBuildScenes();
 
             if (previouslyActive.IsValid() && previouslyActive.isLoaded) SceneManager.SetActiveScene(previouslyActive);
+            RestoreEditorScenes(reopen);
             Debug.Log("[Surgical Foundations] 9 scenes built. Bake lighting via Surgical Foundations ▸ Build ▸ 5 · Bake Lighting.");
         }
 
         // ───────────────────────────── helpers ─────────────────────────────
+
+        static readonly string[] Generated =
+        {
+            ScenePath("Core", SceneIds.Bootstrap), ScenePath("Frontend", SceneIds.Lobby), ScenePath("Frontend", SceneIds.SkillsLab),
+            ScenePath("Theatre", SceneIds.OperatingTheatre), ScenePath("Theatre", SceneIds.StagePrep), ScenePath("Theatre", SceneIds.StageAccess),
+            ScenePath("Theatre", SceneIds.StageOperate), ScenePath("Theatre", SceneIds.StageClose), ScenePath("Tools", SceneIds.ReplayViewer),
+            ScenePath("Tools", "91_ShaderGallery"),
+        };
+
+        const string HolderPath = "Assets/_Sandbox/_SceneBuilderHolder.unity";
+
+        /// <summary>
+        /// Unity refuses to save a new scene over the path of a scene that is open, and refuses to create scenes
+        /// additively while an untitled scene is unsaved. So: save pending edits in open generated scenes, then park
+        /// the editor on a saved, empty holder scene while building. Unsaved work in any other scene is never
+        /// discarded; the build stops with a message instead. Returns the scene to reopen afterwards.
+        /// </summary>
+        static bool PrepareEditorScenes(out string reopen)
+        {
+            reopen = null;
+            bool needSwitch = false;
+            for (int i = 0; i < SceneManager.sceneCount; i++)
+            {
+                var sc = SceneManager.GetSceneAt(i);
+                bool generated = System.Array.IndexOf(Generated, sc.path) >= 0;
+                bool untitled = string.IsNullOrEmpty(sc.path);
+                if (generated)
+                {
+                    if (sc.isDirty) EditorSceneManager.SaveScene(sc);
+                    reopen ??= sc.path;
+                    needSwitch = true;
+                }
+                else if (untitled) needSwitch = true;
+            }
+            if (!needSwitch) return true;
+
+            for (int i = 0; i < SceneManager.sceneCount; i++)
+            {
+                var sc = SceneManager.GetSceneAt(i);
+                if (sc.isDirty && System.Array.IndexOf(Generated, sc.path) < 0)
+                {
+                    Debug.LogError($"[SceneBuilder] '{(string.IsNullOrEmpty(sc.path) ? "Untitled" : sc.path)}' has unsaved changes. Save or discard them, then build again.");
+                    return false;
+                }
+            }
+
+            if (AssetDatabase.LoadAssetAtPath<SceneAsset>(HolderPath) == null)
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(HolderPath));
+                var holder = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+                EditorSceneManager.SaveScene(holder, HolderPath);
+            }
+            else EditorSceneManager.OpenScene(HolderPath, OpenSceneMode.Single);
+            reopen ??= ScenePath("Core", SceneIds.Bootstrap);
+            return true;
+        }
+
+        static void RestoreEditorScenes(string reopen)
+        {
+            if (reopen == null) return;
+            EditorSceneManager.OpenScene(reopen, OpenSceneMode.Single);
+            if (AssetDatabase.LoadAssetAtPath<SceneAsset>(HolderPath) != null) AssetDatabase.DeleteAsset(HolderPath);
+        }
 
         static string ScenePath(string folder, string name) => $"{SFPaths.Scenes}/{folder}/{name}.unity";
 
@@ -99,6 +168,10 @@ namespace SurgicalFoundations.EditorTools
             go.transform.SetPositionAndRotation(pos, rot);
             return go;
         }
+
+        /// <summary>Like Inst, but silently skips optional prefabs (e.g. imported models that may not be present).</summary>
+        static GameObject TryInst(string relPath, Transform parent, Vector3 pos, float yaw = 0f) =>
+            AssetDatabase.LoadAssetAtPath<GameObject>($"{SFPaths.Prefabs}/{relPath}.prefab") != null ? Inst(relPath, parent, pos, yaw) : null;
 
         static GameObject UI(string prefab, Transform parent, Vector3 pos, float yaw)
         {
@@ -160,7 +233,11 @@ namespace SurgicalFoundations.EditorTools
             var go = new GameObject("StepSequence");
             go.transform.SetParent(parent, false);
             var seq = go.AddComponent<StepSequence>();
-            foreach (var s in steps) s.transform.SetParent(go.transform, true);
+            for (int i = 0; i < steps.Length; i++)
+            {
+                steps[i].transform.SetParent(go.transform, true);
+                steps[i].SetActive(i == 0); // StepSequence does the same at runtime; keeps the editor view readable
+            }
             Ser.SetArray(seq, "steps", steps);
             var ids = new int[voice.Length];
             for (int i = 0; i < voice.Length; i++) ids[i] = (int)voice[i];
@@ -279,6 +356,12 @@ namespace SurgicalFoundations.EditorTools
             cam.backgroundColor = new Color(0.02f, 0.04f, 0.05f);
             cam.GetUniversalAdditionalCameraData().renderPostProcessing = true;
             cam.gameObject.AddComponent<PlatformPostProcessing>();
+            var gaze = xr.transform.Find("Camera Offset/Gaze Interactor");
+            if (gaze != null)
+            {
+                gaze.gameObject.SetActive(false); // Quest 3 has no eye tracking; see EyeGazeActivator
+                Ser.Set(xr.AddComponent<EyeGazeActivator>(), "gazeInteractor", gaze.gameObject);
+            }
             new GameObject("XR Interaction Manager", typeof(XRInteractionManager)).transform.SetParent(xrRoot);
             new GameObject("EventSystem", typeof(EventSystem), typeof(XRUIInputModule)).transform.SetParent(xrRoot);
 
@@ -329,6 +412,17 @@ namespace SurgicalFoundations.EditorTools
             Wire("Btn_Restartscenario", pauseMenu.RestartScenario);
             Wire("Btn_Endsession", pauseMenu.EndSession);
 
+            var devGo = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            devGo.name = "DeviationVignette";
+            Object.DestroyImmediate(devGo.GetComponent<Collider>());
+            devGo.transform.SetParent(ui);
+            devGo.transform.localScale = Vector3.one * 0.5f;
+            var devR = devGo.GetComponent<MeshRenderer>();
+            devR.sharedMaterial = MaterialLibrary.Get("FX_DeviationVignette");
+            devR.shadowCastingMode = ShadowCastingMode.Off;
+            devR.receiveShadows = false;
+            Ser.Set(devGo.AddComponent<DeviationVignette>(), "sphere", devR);
+
             LightingRig.ApplyEnvironment(new Color(0.03f, 0.05f, 0.055f), LightingRig.Settings("Bootstrap", 8, 256));
             Save(s, "Core", SceneIds.Bootstrap);
         }
@@ -372,6 +466,9 @@ namespace SurgicalFoundations.EditorTools
             Kinematic(grasper);
             var diagram = Inst("TrainingProps/PROP_ControllerDiagram", props, new Vector3(0.62f, 1.25f, 0.62f), -35f);
             diagram.transform.localScale = Vector3.one * 2.5f; // enlarged for the tutorial callouts
+            TryInst("Equipment/EQ_Microscope", props, new Vector3(-0.5f, 0.92f, 0.78f), 30f);
+            Inst("Equipment/EQ_BackTable", props, new Vector3(-2.3f, 0, 1.4f), 90f);
+            TryInst("TrainingProps/PROP_OpenSurgerySet", props, new Vector3(-2.3f, 0.926f, 1.4f), 90f);
 
             var viewer = new Vector3(0, 1.6f, -0.2f);
             var cal = FacingUI("UI_03_Calibrate", ui, new Vector3(-0.85f, 1.45f, 0.95f), viewer);
@@ -398,6 +495,20 @@ namespace SurgicalFoundations.EditorTools
             Inst("Equipment/EQ_AnaesthesiaMachine", eq, new Vector3(-1.8f, 0, 0.5f), 110f);
             Inst("Equipment/EQ_MayoStand", eq, new Vector3(0.8f, 0, -0.7f), 0f);
             Inst("Equipment/EQ_BackTable", eq, new Vector3(2.0f, 0, -1.3f), 90f);
+            TryInst("Equipment/EQ_HeartLungMachine", eq, new Vector3(2.75f, 0, 2.55f), 225f);
+            TryInst("Equipment/EQ_PatientMonitor", eq, new Vector3(-1.05f, 0, 1.1f), 150f);
+
+            var laminar = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            laminar.name = "LaminarFlow_FX";
+            Object.DestroyImmediate(laminar.GetComponent<Collider>());
+            laminar.transform.SetParent(props);
+            laminar.transform.position = new Vector3(0, 2.0f, 0);
+            laminar.transform.localScale = new Vector3(3.0f, 1.9f, 3.0f);
+            var lr = laminar.GetComponent<MeshRenderer>();
+            lr.sharedMaterial = MaterialLibrary.Get("FX_LaminarFlow");
+            lr.shadowCastingMode = ShadowCastingMode.Off;
+            lr.receiveShadows = false;
+            laminar.AddComponent<DisableOnMobileXR>();
 
             var patient = Group("Patient", props);
             Inst("Anatomy/ANA_PatientBody", patient, new Vector3(0, 0.92f, 0));
@@ -434,6 +545,14 @@ namespace SurgicalFoundations.EditorTools
             var tap = sink.transform.Find("WaterSocket_L");
             if (tap != null) tap.gameObject.SetActive(true);
             Inst("PPE/PPE_SurgicalGown", props, new Vector3(-3.15f, 0, -4.1f), 90f);
+            var ghost = Inst("PPE/PPE_SurgeonHands", props, new Vector3(-2.0f, 1.32f, -5.12f), Quaternion.Euler(-35, 180, 0));
+            ghost.name = "GhostHands_ScrubDemo";
+            foreach (var r in ghost.GetComponentsInChildren<MeshRenderer>())
+            {
+                r.sharedMaterial = MaterialLibrary.Get("FX_GhostHand");
+                r.shadowCastingMode = ShadowCastingMode.Off;
+            }
+            ghost.AddComponent<SimpleMotion>().Configure(new Vector3(0, 0.03f, 0), 0.5f, new Vector3(0, 0, 10), 0.35f, 0);
             Inst("Characters/CHR_ScrubNurse", props, new Vector3(1.35f, 0, -2.05f), -40f);
 
             // Back table (in OR_Base at (2.0, 0, −1.3), long axis along Z): gloves, tray with the 8 counted items, 5 swabs.
@@ -491,7 +610,14 @@ namespace SurgicalFoundations.EditorTools
             var entryPos = new Vector3(-1.3f, 1.5f, 0.1f);
             var ports = FacingUI("UI_08_PortSites", ui, new Vector3(-0.95f, 1.5f, 0.15f), LearnerEye);
             var entry = StepGroup("Step_TrocarEntry", FacingUI("UI_09_TrocarEntry", ui, entryPos, LearnerEye), UI("UI_Monitor_Access", ui, MonitorScreen, 0));
-            var branch = StepGroup("Step_BleedBranch", FacingUI("UI_10_BleedBranch", ui, new Vector3(-1.0f, 1.5f, 0.15f), LearnerEye), UI("UI_Monitor_Access", ui, MonitorScreen, 0));
+            var blood = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            blood.name = "BleedPool_FX";
+            Object.DestroyImmediate(blood.GetComponent<Collider>());
+            blood.transform.SetPositionAndRotation(Ports["Right"] + Vector3.up * 0.006f, Quaternion.Euler(90, 0, 0));
+            blood.transform.localScale = Vector3.one * 0.08f;
+            blood.GetComponent<MeshRenderer>().sharedMaterial = MaterialLibrary.Get("FX_Blood");
+            blood.AddComponent<ShaderPropertyAnimator>().Configure("_Spread", 0f, 0.85f, 8f, ShaderPropertyAnimator.Mode.Once, 0.5f);
+            var branch = StepGroup("Step_BleedBranch", FacingUI("UI_10_BleedBranch", ui, new Vector3(-1.0f, 1.5f, 0.15f), LearnerEye), UI("UI_Monitor_Access", ui, MonitorScreen, 0), blood);
             Sequence(flow, new[] { ports, entry, branch }, new[] { SoundId.VO_Access_MarkRightPort, SoundId.VO_Access_AngleShallow, SoundId.None });
 
             Spawn(flow, new Vector3(0, 0, -0.85f), 0);
@@ -578,7 +704,7 @@ namespace SurgicalFoundations.EditorTools
             head.transform.SetParent(ghost, false);
             head.transform.localPosition = new Vector3(0, 1.65f, 0);
             head.transform.localScale = new Vector3(0.18f, 0.22f, 0.2f);
-            head.GetComponent<MeshRenderer>().sharedMaterial = MaterialLibrary.Get("Guided_Mint");
+            head.GetComponent<MeshRenderer>().sharedMaterial = MaterialLibrary.Get("FX_Hologram");
             Inst("PPE/PPE_SurgeonHands", ghost, new Vector3(0, 1.15f, -0.45f), 0);
 
             LightingRig.TheatreRig(lights);
@@ -608,6 +734,130 @@ namespace SurgicalFoundations.EditorTools
             panel.anchoredPosition = new Vector2(0, 40);
 
             Save(s, "Tools", SceneIds.ReplayViewer);
+        }
+
+        // ───────────────────────────── 91 Shader gallery (review scene, not in the build) ─────────────────────────────
+
+        static void ShaderGallery()
+        {
+            var s = Begin(out var env, out var props, out var ui, out var lights, out var flow);
+
+            var floor = GameObject.CreatePrimitive(PrimitiveType.Plane);
+            floor.name = "Floor";
+            floor.transform.SetParent(env);
+            floor.transform.localScale = new Vector3(2.4f, 1, 1.2f);
+            floor.GetComponent<MeshRenderer>().sharedMaterial = MaterialLibrary.Get("Lobby_Floor");
+            var back = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            back.name = "Backdrop";
+            back.transform.SetParent(env);
+            back.transform.position = new Vector3(0, 2f, 3.2f);
+            back.transform.localScale = new Vector3(24f, 4f, 0.1f);
+            back.GetComponent<MeshRenderer>().sharedMaterial = MaterialLibrary.Get("Lobby_Wall");
+
+            var sun = new GameObject("KeyLight", typeof(Light)).GetComponent<Light>();
+            sun.transform.SetParent(lights);
+            sun.type = LightType.Directional;
+            sun.transform.rotation = Quaternion.Euler(40, -25, 0);
+            sun.intensity = 1.4f;
+            sun.shadows = LightShadows.Soft;
+            sun.useColorTemperature = true;
+            sun.colorTemperature = 5200;
+            var fill = LightingRig.Spot(lights, "Spot_Fill", new Vector3(0, 3.2f, -1.5f), new Vector3(0, 1, 1.4f), 110f, 6f, 6500f, LightmapBakeType.Realtime, LightShadows.None, 8f);
+            fill.intensity = 3f;
+            LightingRig.Reflection(lights, "Reflection", new Vector3(0, 1.5f, 0.5f), new Vector3(16, 4, 6), 1, 128);
+            var ls = LightingRig.Settings("ShaderGallery", 8, 256);
+            ls.bakedGI = false;
+            LightingRig.ApplyEnvironment(new Color(0.18f, 0.21f, 0.22f), ls);
+            RenderSettings.ambientMode = AmbientMode.Trilight;
+            RenderSettings.ambientSkyColor = new Color(0.35f, 0.4f, 0.42f);
+            RenderSettings.ambientEquatorColor = new Color(0.2f, 0.23f, 0.24f);
+            RenderSettings.ambientGroundColor = new Color(0.08f, 0.1f, 0.1f);
+
+            // Gallery-only laparoscope screen material with a test image so the optics are visible.
+            var lapPath = SFPaths.Materials + "/Lighting/M_Gallery_LapScreen.mat";
+            var lap = AssetDatabase.LoadAssetAtPath<Material>(lapPath);
+            if (lap == null) { lap = new Material(MaterialLibrary.Get("Screen_Laparoscope")); AssetDatabase.CreateAsset(lap, lapPath); }
+            var testImage = AssetDatabase.LoadAssetAtPath<Texture2D>(ImportedAssets.Root + "/heartlung-machine/textures/Machines_Albedo.tga.png")
+                ?? AssetDatabase.LoadAssetAtPath<Texture2D>(SFPaths.Textures + "/T_LobbyGrid.png");
+            lap.SetTexture("_BaseMap", testImage);
+            lap.SetColor("_EmissionColor", Color.white * 1.3f);
+
+            (string label, string mat, PrimitiveType prim, Vector3 scale, Vector3 euler, string anim)[] items =
+            {
+                ("01 Wet Tissue", "Tissue_Pink", PrimitiveType.Sphere, new Vector3(0.4f, 0.28f, 0.34f), Vector3.zero, null),
+                ("02 Brushed Steel", "Stainless_Brushed", PrimitiveType.Cylinder, new Vector3(0.28f, 0.22f, 0.28f), new Vector3(0, 0, 0), null),
+                ("03 Surgical Drape", "Drape_Teal", PrimitiveType.Sphere, new Vector3(0.4f, 0.4f, 0.4f), Vector3.zero, null),
+                ("04 Surgical Glove", "Glove_Contaminated", PrimitiveType.Capsule, new Vector3(0.22f, 0.2f, 0.22f), Vector3.zero, "_Contamination"),
+                ("05 Skin", "Skin", PrimitiveType.Sphere, new Vector3(0.36f, 0.36f, 0.36f), Vector3.zero, null),
+                ("06 Blood Pool", "FX_Blood", PrimitiveType.Quad, new Vector3(0.42f, 0.42f, 1f), new Vector3(20, 0, 0), "_Spread"),
+                ("07 Guided Highlight", "Guided_Mint", PrimitiveType.Sphere, new Vector3(0.36f, 0.36f, 0.36f), Vector3.zero, null),
+                ("08 Dashed Ring", "Guided_DashedRing", PrimitiveType.Quad, new Vector3(0.42f, 0.42f, 1f), Vector3.zero, null),
+                ("09 Target Pulse", "FX_TargetPulse", PrimitiveType.Quad, new Vector3(0.42f, 0.42f, 1f), Vector3.zero, null),
+                ("10 Ghost Hand", "FX_GhostHand", PrimitiveType.Capsule, new Vector3(0.22f, 0.2f, 0.22f), Vector3.zero, null),
+                ("11 Water Stream", "FX_WaterStream", PrimitiveType.Cylinder, new Vector3(0.05f, 0.25f, 0.05f), Vector3.zero, null),
+                ("12 Soap Lather", "FX_SoapLather", PrimitiveType.Quad, new Vector3(0.42f, 0.42f, 1f), Vector3.zero, null),
+                ("13 Dissolve", "FX_Dissolve", PrimitiveType.Sphere, new Vector3(0.36f, 0.36f, 0.36f), Vector3.zero, "_Dissolve"),
+                ("14 Laminar Flow", "FX_LaminarFlow", PrimitiveType.Cube, new Vector3(0.36f, 0.5f, 0.36f), Vector3.zero, null),
+                ("15 Laparoscope Screen", null, PrimitiveType.Quad, new Vector3(0.5f, 0.3f, 1f), Vector3.zero, null),
+                ("16 Vitals Monitor", "Screen_Vitals", PrimitiveType.Quad, new Vector3(0.5f, 0.3f, 1f), Vector3.zero, null),
+                ("17 Grid Floor", "Lobby_Floor", PrimitiveType.Quad, new Vector3(0.45f, 0.45f, 1f), new Vector3(60, 0, 0), null),
+                ("18 Cove Glow", "Light_CovePanel", PrimitiveType.Cube, new Vector3(0.45f, 0.05f, 0.05f), Vector3.zero, null),
+                ("19 View Vignette", "UI_Dimmer", PrimitiveType.Sphere, new Vector3(0.36f, 0.36f, 0.36f), Vector3.zero, null),
+                ("20 Hologram", "FX_Hologram", PrimitiveType.Capsule, new Vector3(0.22f, 0.2f, 0.22f), Vector3.zero, null),
+            };
+
+            for (int i = 0; i < items.Length; i++)
+            {
+                var (label, mat, prim, scale, euler, anim) = items[i];
+                int row = i / 10, col = i % 10;
+                // Back row stands taller so the front row never hides it from the gallery camera.
+                float pedHeight = row == 0 ? 1.35f : 0.7f;
+                var basePos = new Vector3((col - 4.5f) * 0.75f + (row == 0 ? 0 : 0.375f), 0, row == 0 ? 1.7f : 0.3f);
+                var ped = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                ped.name = "Pedestal_" + (i + 1);
+                ped.transform.SetParent(props);
+                ped.transform.position = basePos + Vector3.up * pedHeight * 0.5f;
+                ped.transform.localScale = new Vector3(0.34f, pedHeight * 0.5f, 0.34f);
+                ped.GetComponent<MeshRenderer>().sharedMaterial = MaterialLibrary.Get("Polymer_Dark");
+
+                var go = GameObject.CreatePrimitive(prim);
+                go.name = label;
+                Object.DestroyImmediate(go.GetComponent<Collider>());
+                go.transform.SetParent(props);
+                go.transform.position = basePos + Vector3.up * (pedHeight + 0.28f);
+                go.transform.rotation = Quaternion.Euler(euler);
+                go.transform.localScale = scale;
+                go.GetComponent<MeshRenderer>().sharedMaterial = mat == null ? lap : MaterialLibrary.Get(mat);
+                if (anim != null)
+                {
+                    float to = anim == "_Dissolve" ? 0.9f : anim == "_EdgeOpacity" ? 0.8f : 1f;
+                    go.AddComponent<ShaderPropertyAnimator>().Configure(anim, anim == "_Spread" ? 0.15f : 0f, to, 3f, ShaderPropertyAnimator.Mode.PingPong);
+                }
+                if (prim == PrimitiveType.Sphere || prim == PrimitiveType.Capsule || prim == PrimitiveType.Cylinder)
+                    go.AddComponent<SimpleMotion>().Configure(Vector3.zero, 0f, Vector3.zero, 0f, 20f);
+
+                var labelGo = new GameObject("Label_" + (i + 1), typeof(RectTransform));
+                labelGo.transform.SetParent(props);
+                labelGo.transform.position = basePos + new Vector3(0, pedHeight + 0.02f, -0.21f);
+                var tmp = labelGo.AddComponent<TextMeshPro>();
+                tmp.text = label;
+                tmp.fontSize = 0.6f;
+                tmp.alignment = TextAlignmentOptions.Center;
+                tmp.color = new Color(0.9f, 0.95f, 0.94f);
+                ((RectTransform)labelGo.transform).sizeDelta = new Vector2(0.7f, 0.12f);
+            }
+
+            var camGo = new GameObject("GalleryCamera", typeof(Camera), typeof(AudioListener));
+            camGo.transform.SetParent(flow);
+            camGo.transform.position = new Vector3(0.2f, 1.85f, -3.9f);
+            camGo.transform.LookAt(new Vector3(0.2f, 1.25f, 1.0f));
+            camGo.GetComponent<Camera>().fieldOfView = 52f;
+            camGo.GetComponent<Camera>().clearFlags = CameraClearFlags.SolidColor;
+            camGo.GetComponent<Camera>().backgroundColor = new Color(0.05f, 0.07f, 0.08f);
+            camGo.GetComponent<Camera>().GetUniversalAdditionalCameraData().renderPostProcessing = true;
+            LightingRig.GlobalVolume(lights, LightingRig.PostProfile(LightingRig.Profile.Lab));
+
+            Save(s, "Tools", "91_ShaderGallery");
         }
 
         // ───────────────────────────── build settings ─────────────────────────────

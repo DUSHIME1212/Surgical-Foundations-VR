@@ -29,6 +29,10 @@ namespace SurgicalFoundations.EditorTools
             public Kind kind = Kind.Lit;
             public string texture;
             public Vector2 tiling = Vector2.one;
+            // Custom SF shader (Art/Shaders). When set, only the listed properties are applied.
+            public string shader;
+            public Dictionary<string, Color> colors;
+            public Dictionary<string, float> floats;
         }
 
         static readonly Dictionary<string, Spec> Specs = new Dictionary<string, Spec>();
@@ -41,6 +45,23 @@ namespace SurgicalFoundations.EditorTools
 
         static void Emissive(string key, string folder, string hex, string emissionHex, float intensity, bool baked) =>
             Specs[key] = new Spec { folder = folder, color = C(hex), smoothness = 0.3f, emission = C(emissionHex), emissionIntensity = intensity, bakedEmission = baked };
+
+        static void Custom(string key, string folder, string shader, Dictionary<string, Color> colors = null, Dictionary<string, float> floats = null) =>
+            Specs[key] = new Spec { folder = folder, shader = shader, colors = colors ?? new Dictionary<string, Color>(), floats = floats ?? new Dictionary<string, float>() };
+
+        static Dictionary<string, Color> Cols(params (string name, string hex)[] c)
+        {
+            var d = new Dictionary<string, Color>();
+            foreach (var (n, h) in c) d[n] = C(h);
+            return d;
+        }
+
+        static Dictionary<string, float> Flt(params (string name, float v)[] f)
+        {
+            var d = new Dictionary<string, float>();
+            foreach (var (n, v) in f) d[n] = v;
+            return d;
+        }
 
         static MaterialLibrary()
         {
@@ -126,6 +147,65 @@ namespace SurgicalFoundations.EditorTools
             Specs["Guided_Amber"] = new Spec { folder = "TrainingProps", color = new Color(0.96f, 0.71f, 0.29f, 0.9f), kind = Kind.Unlit, transparent = true };
             Specs["UI_Dimmer"] = new Spec { folder = "Lighting", color = new Color(0.02f, 0.04f, 0.05f, 0.7f), kind = Kind.Unlit, transparent = true, doubleSided = true };
             Specs["Guided_DashedRing"] = new Spec { folder = "TrainingProps", color = new Color(0.36f, 0.88f, 0.78f, 1f), kind = Kind.Unlit, transparent = true, texture = SFPaths.Sprites + "/circle_dashed.png" };
+
+            ApplyShaderLibrary();
+        }
+
+        /// <summary>
+        /// Moves materials onto the 20 custom SF shaders (Art/Shaders). Same keys give the same asset paths, so every
+        /// prefab that already uses e.g. M_Drape_Teal picks up the new shader on the next build.
+        /// </summary>
+        static void ApplyShaderLibrary()
+        {
+            const string Tissue = "SF/Surgical/Wet Tissue", Steel = "SF/Surgical/Brushed Steel", Drape = "SF/Surgical/Surgical Drape",
+                Glove = "SF/Surgical/Surgical Glove", SkinS = "SF/Surgical/Skin";
+
+            // 01 Wet tissue (the cavity is viewed from inside, so it is double sided)
+            Custom("Tissue_Wet", "Anatomy", Tissue, Cols(("_BaseColor", "9E3A33"), ("_MottleColor", "6E1E1A"), ("_VeinColor", "4A0710")), Flt(("_Cull", 0f), ("_MottleScale", 30f)));
+            Custom("Tissue_Pink", "Anatomy", Tissue, Cols(("_BaseColor", "D98A83"), ("_MottleColor", "B8625C"), ("_VeinColor", "8C2030")), Flt(("_VeinAmount", 0.35f)));
+            Custom("Liver", "Anatomy", Tissue, Cols(("_BaseColor", "6B1F18"), ("_MottleColor", "4A120E"), ("_VeinColor", "3A0A0C")), Flt(("_VeinAmount", 0.2f), ("_Wetness", 0.9f)));
+            Custom("Bowel", "Anatomy", Tissue, Cols(("_BaseColor", "E0948A"), ("_MottleColor", "C87468"), ("_VeinColor", "A02838")), Flt(("_VeinAmount", 0.6f)));
+            Custom("Peritoneum", "Anatomy", Tissue, Cols(("_BaseColor", "E3A6A0"), ("_MottleColor", "D08C86")), Flt(("_VeinAmount", 0.4f), ("_SSS", 0.6f)));
+            // 02 Brushed steel
+            Custom("Instrument_Steel", "Instruments", Steel, Cols(("_BaseColor", "C3C9CC")), Flt(("_Smoothness", 0.82f), ("_BrushAxis", 2f)));
+            Custom("Instrument_Titanium", "Instruments", Steel, Cols(("_BaseColor", "A9A39A")), Flt(("_Smoothness", 0.7f)));
+            Custom("Stainless_Brushed", "Equipment", Steel, Cols(("_BaseColor", "B7BEC2")), Flt(("_Smoothness", 0.72f), ("_BrushAxis", 0f), ("_BrushDensity", 500f)));
+            Custom("Stainless_Satin", "Equipment", Steel, Cols(("_BaseColor", "9CA3A7")), Flt(("_Smoothness", 0.55f), ("_BrushAxis", 1f), ("_BrushStrength", 0.5f)));
+            // 03 Drape, gown and scrubs fabric
+            Custom("Drape_Teal", "PPE", Drape, Cols(("_BaseColor", "2F6F73"), ("_SheenColor", "8CC8C8")));
+            Custom("Gown_Blue", "PPE", Drape, Cols(("_BaseColor", "4A7FA8"), ("_SheenColor", "A8C8E8")), Flt(("_FoldScale", 5f)));
+            Custom("Scrubs_Teal", "PPE", Drape, Cols(("_BaseColor", "3E8A86"), ("_SheenColor", "90C8C0")), Flt(("_WeaveScale", 800f)));
+            Custom("Scrubs_Green", "PPE", Drape, Cols(("_BaseColor", "4E7F5B"), ("_SheenColor", "98C0A0")), Flt(("_WeaveScale", 800f)));
+            Custom("Cap_Blue", "PPE", Drape, Cols(("_BaseColor", "7FAFD1"), ("_SheenColor", "C8E0F0")), Flt(("_FoldScale", 12f)));
+            Custom("Mask_Blue", "PPE", Drape, Cols(("_BaseColor", "A9CDE3"), ("_SheenColor", "E0F0F8")), Flt(("_FoldScale", 15f)));
+            // 04 Gloves
+            Custom("Glove_Latex", "PPE", Glove, Cols(("_BaseColor", "D8C79E")), Flt(("_Contamination", 0f)));
+            Custom("Glove_Contaminated", "PPE", Glove, Cols(("_BaseColor", "D8C79E")), Flt(("_Contamination", 0.75f)));
+            // 05 Skin
+            Custom("Skin", "Anatomy", SkinS, Cols(("_BaseColor", "D9A48A")));
+            Custom("Skin_Prepped", "Anatomy", SkinS, Cols(("_BaseColor", "D9A48A")), Flt(("_Prep", 1f)));
+            // 06 Blood, 13 Dissolve
+            Custom("FX_Blood", "Anatomy", "SF/Surgical/Blood Pool");
+            Custom("FX_Dissolve", "Lighting", "SF/FX/Dissolve");
+            // 07 to 12 and 14: effects
+            Custom("Guided_Mint", "TrainingProps", "SF/FX/Guided Highlight", Cols(("_Color", "5CE0C8")));
+            Custom("Guided_Amber", "TrainingProps", "SF/FX/Guided Highlight", Cols(("_Color", "F5B54B")));
+            Custom("Guided_DashedRing", "TrainingProps", "SF/FX/Dashed Ring", Cols(("_Color", "5CE0C8")), Flt(("_DotRadius", 0f)));
+            Custom("FX_TargetPulse", "TrainingProps", "SF/FX/Target Pulse", Cols(("_Color", "5CE0C8")));
+            Custom("FX_GhostHand", "Characters", "SF/FX/Ghost Hand");
+            Custom("FX_WaterStream", "Equipment", "SF/FX/Water Stream");
+            Custom("FX_SoapLather", "Equipment", "SF/FX/Soap Lather");
+            Custom("FX_LaminarFlow", "Lighting", "SF/FX/Laminar Flow");
+            // 15 and 16: screens (Screen_Laparoscope keeps its property names for LaparoscopeFeed)
+            Custom("Screen_Laparoscope", "Equipment", "SF/UI/Laparoscope Screen", Cols(("_BaseColor", "FFFFFF"), ("_EmissionColor", "000000")));
+            Custom("Screen_Vitals", "Equipment", "SF/UI/Vitals Monitor");
+            // 17 and 18: environment
+            Custom("Lobby_Floor", "Environment", "SF/Environment/Grid Floor");
+            Custom("Light_CovePanel", "Lighting", "SF/Environment/Cove Glow", Cols(("_Color", "5CE0C8")), Flt(("_Intensity", 1.6f)));
+            // 19 view vignette, 20 hologram
+            Custom("UI_Dimmer", "Lighting", "SF/FX/View Vignette", Cols(("_Color", "050A0D")), Flt(("_Opacity", 0.62f), ("_EdgeOpacity", 0.3f)));
+            Custom("FX_DeviationVignette", "Lighting", "SF/FX/View Vignette", Cols(("_Color", "FF8A79")), Flt(("_Opacity", 0f), ("_EdgeOpacity", 0f), ("_Inner", 0.35f), ("_Outer", 0.75f)));
+            Custom("FX_Hologram", "Characters", "SF/FX/Hologram", Cols(("_Color", "5CE0C8")));
         }
 
         public static IEnumerable<string> Keys => Specs.Keys;
@@ -144,7 +224,8 @@ namespace SurgicalFoundations.EditorTools
             var dir = $"{SFPaths.Materials}/{spec.folder}";
             Directory.CreateDirectory(dir);
             var path = $"{dir}/M_{key}.mat";
-            var shader = Shader.Find(spec.kind == Kind.Unlit ? "Universal Render Pipeline/Unlit" : "Universal Render Pipeline/Lit");
+            var shader = Shader.Find(spec.shader ?? (spec.kind == Kind.Unlit ? "Universal Render Pipeline/Unlit" : "Universal Render Pipeline/Lit"));
+            if (shader == null) { Debug.LogError($"[MaterialLibrary] Shader '{spec.shader}' not found for {key}"); shader = Shader.Find("Universal Render Pipeline/Lit"); }
             var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
             if (mat == null)
             {
@@ -161,6 +242,21 @@ namespace SurgicalFoundations.EditorTools
 
         static void Apply(Material m, Spec s)
         {
+            if (s.shader != null)
+            {
+                // Reset to the shader's defaults first: a material migrated from URP Lit keeps stale values
+                // (e.g. a white _BaseColor) for properties the new shader shares with Lit.
+                var defaults = new Material(m.shader);
+                m.CopyPropertiesFromMaterial(defaults);
+                Object.DestroyImmediate(defaults);
+                m.shaderKeywords = new string[0];
+                m.renderQueue = -1; // queue comes from the shader
+                foreach (var kv in s.colors) m.SetColor(kv.Key, kv.Value);
+                foreach (var kv in s.floats) m.SetFloat(kv.Key, kv.Value);
+                m.enableInstancing = true;
+                return;
+            }
+
             m.SetColor("_BaseColor", s.color);
             if (!string.IsNullOrEmpty(s.texture))
             {

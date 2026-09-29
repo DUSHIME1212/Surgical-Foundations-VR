@@ -35,13 +35,17 @@ namespace SurgicalFoundations.EditorTools
             PegBoard(); TransferObjects(); PortSiteMarkers(); ControllerDiagram();
             // Characters
             Mannequin("CHR_ScrubNurse", "CHR-01", "Scrub nurse / assistant", AssetRelease.MVP, 20000, "Gown_Blue", "Scrubs_Teal", true,
-                "Rigged humanoid; helps with gowning; holds the camera in R2 (US-OP-03). ~12 keyframed clips.");
+                "Rigged humanoid; helps with gowning; holds the camera in R2 (US-OP-03). ~12 keyframed clips.",
+                ImportedAssets.Nurse, 1.70f, SterileHands);
             Mannequin("CHR_Anaesthetist", "CHR-02", "Anaesthetist", AssetRelease.R2, 15000, "Scrubs_Green", "Scrubs_Green", false,
-                "Background, idle loop only.");
+                "Background, idle loop only.", ImportedAssets.Doctor, 1.78f, RelaxedArms);
             CameraAssistantHands();
 
+            // Background dressing from Assets/_Project/Imports (skipped if the models are missing)
+            ImportedProps();
+
             AssetDatabase.SaveAssets();
-            Debug.Log("[Surgical Foundations] 41 placeholder prefabs built in " + SFPaths.Prefabs);
+            Debug.Log("[Surgical Foundations] Asset-list prefabs (+ imported props) built in " + SFPaths.Prefabs);
         }
 
         // ───────────────────────────── PPE ─────────────────────────────
@@ -310,6 +314,7 @@ namespace SurgicalFoundations.EditorTools
                 var g = b.Group($"Marker_{n}", p);
                 b.Quad("DashedRing", new Vector3(0, 0.003f, 0), new Vector2(0.06f, 0.06f), "Guided_DashedRing", new Vector3(90, 0, 0), g);
                 b.Cyl("Dot", new Vector3(0, 0.002f, 0), 0.01f, 0.001f, "Guided_Mint", default, g);
+                b.Quad("TargetPulse", new Vector3(0, 0.0035f, 0), new Vector2(0.05f, 0.05f), "FX_TargetPulse", new Vector3(90, 0, 0), g);
                 b.Pivot($"Target_{n}", p);
             }
             b.Info("PROP-03", "Port-site target markers", "TrainingProp", AssetRelease.MVP, 500, "Decals and dashed rings, Guided mode only.");
@@ -334,9 +339,23 @@ namespace SurgicalFoundations.EditorTools
         // ───────────────────────────── Characters ─────────────────────────────
 
         /// <summary>Primitive mannequin (1.68 m) with humanoid-named transforms so the real rig can map onto it. Origin at the feet, facing +Z.</summary>
-        static void Mannequin(string prefabName, string id, string display, AssetRelease rel, int tris, string topMat, string legMat, bool gloved, string notes)
+        static void Mannequin(string prefabName, string id, string display, AssetRelease rel, int tris, string topMat, string legMat, bool gloved, string notes,
+            string importedModel = null, float importedHeight = 1.7f, Vector3[] importedPose = null)
         {
             var b = new PB(prefabName);
+
+            // Real rigged model if it has been imported; the primitive mannequin below is the fallback.
+            if (importedModel != null && ImportedCharacter(b, importedModel, importedHeight, importedPose ?? RelaxedArms))
+            {
+                var col = b.Root.AddComponent<CapsuleCollider>();
+                col.center = new Vector3(0, importedHeight / 2, 0);
+                col.height = importedHeight;
+                col.radius = 0.24f;
+                b.Info(id, display, "Character", rel, tris, notes + " Imported: " + importedModel).isPlaceholder = false;
+                b.Save(Folder("Characters"));
+                return;
+            }
+
             var hips = b.Group("Hips", new Vector3(0, 0.92f, 0));
             b.CapE("Pelvis", Vector3.zero, new Vector3(0.22f, 0.34f, 0.2f), topMat, new Vector3(0, 0, 90), hips);
             for (int s = -1; s <= 1; s += 2)

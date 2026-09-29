@@ -7,6 +7,16 @@ Current project state (Sep 29, 2026): Unity 6000.6.3f1, URP 17.6, XRI 3.6, XR Ha
 
 ---
 
+## Progress (Sep 29, 2026)
+Pulled forward from Sprints 1–3 as a grey-box foundation (see `Docs/ProjectStructure.md`):
+- ✅ `Assets/_Project` structure, runtime + editor assemblies, import rules
+- ✅ All 41 asset-list models as real-scale primitive placeholders with gameplay pivots (swap-ready)
+- ✅ 9 scenes: persistent bootstrap + additive stages, fade transitions, spawn points, build settings
+- ✅ Lighting pipeline: baked rooms, mixed surgical heads, probes, reflection probes, post profiles
+- ✅ All 16 prototype screens + HUD, toasts, subtitles, pause, monitor overlays; click-through flow Lobby → Prep → Access → Operate → Close → Summary
+- ✅ 63 original placeholder sounds + SoundBank + AudioManager (ducking, subtitles, haptic UI ticks)
+- ⏳ Not yet: detection/scoring logic, pose recorder, sync queue, backend, Obi tissue, real art/VO
+
 ## 0. Decisions and fixes before Sprint 1
 
 | # | Item | Owner | Why it blocks |

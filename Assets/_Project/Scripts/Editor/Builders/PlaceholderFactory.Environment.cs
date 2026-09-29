@@ -217,8 +217,8 @@ namespace SurgicalFoundations.EditorTools
                 float armEnd = side * 0.85f;
                 b.Cyl($"Arm_{id}", new Vector3(armEnd / 2, 2.5f, z / 2), 0.06f, Mathf.Sqrt(armEnd * armEnd + z * z), "Polymer_White",
                     new Vector3(0, -Mathf.Atan2(z, armEnd) * Mathf.Rad2Deg, 90));
-                b.Cyl($"Yoke_{id}", new Vector3(armEnd, 2.36f, z), 0.05f, 0.28f, "Polymer_White");
-                var headPos = new Vector3(armEnd * 0.9f, 2.12f, z * 0.9f);
+                b.Cyl($"Yoke_{id}", new Vector3(armEnd, 2.42f, z), 0.05f, 0.16f, "Polymer_White");
+                var headPos = new Vector3(armEnd * 0.9f, 2.3f, z * 0.9f); // ~1.1 m above the field, clear of the learner's head
                 var look = Quaternion.LookRotation(target - headPos, Vector3.up);
                 // Head disc faces its local −Y toward the table: build a rotation whose −Y = look direction.
                 var headRot = Quaternion.FromToRotation(Vector3.down, look * Vector3.forward);
@@ -235,7 +235,7 @@ namespace SurgicalFoundations.EditorTools
                 l.spotAngle = 38f;
                 l.innerSpotAngle = 20f;
                 l.range = 3.5f;
-                l.intensity = 6f;
+                l.intensity = 7f;
                 l.useColorTemperature = true;
                 l.colorTemperature = 4500f;
                 l.color = Color.white;
@@ -333,9 +333,13 @@ namespace SurgicalFoundations.EditorTools
                 var w = b.Pivot($"WaterSocket_{n}", new Vector3(x, 1.47f, -0.07f), new Vector3(90, 0, 0));
                 var em = w.gameObject.AddComponent<AmbientEmitter>();
                 em.Sound = SoundId.AMB_TapWater;
+                // Visible stream (SF/FX/Water Stream): socket +Z points down, so offset along +Z and undo the socket tilt.
+                var stream = b.Cyl("WaterStream", new Vector3(0, 0, 0.16f), 0.012f, 0.32f, "FX_WaterStream", new Vector3(-90, 0, 0), w);
+                stream.GetComponent<MeshRenderer>().shadowCastingMode = ShadowCastingMode.Off;
                 w.gameObject.SetActive(false); // switched on by the sensor
             }
             b.Box("SoapDispenser", new Vector3(0, 1.45f, -0.26f), new Vector3(0.1f, 0.2f, 0.08f), "Polymer_White");
+            b.Quad("SoapLather", new Vector3(-0.4f, 0.818f, -0.05f), new Vector2(0.32f, 0.28f), "FX_SoapLather", new Vector3(90, 0, 0));
             b.Box("Brushes", new Vector3(0.62f, 1.4f, -0.27f), new Vector3(0.2f, 0.25f, 0.06f), "Polymer_White");
             b.Collider(null, new Vector3(0, 0.95f, -0.1f), new Vector3(1.7f, 1.9f, 0.6f));
             b.Info("EQ-05", "Scrub sink + sensor tap", "Equipment", AssetRelease.MVP, 5000, "Water VFX socket at spout (WaterSocket_*); soap dispenser.");

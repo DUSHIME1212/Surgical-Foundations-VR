@@ -14,8 +14,13 @@ namespace SurgicalFoundations.UI
 
         CanvasGroup group;
         Coroutine running;
+        Vector3 baseScale; // world-space canvases carry their metres-per-pixel scale here (0.001)
 
-        void Awake() => group = GetComponent<CanvasGroup>();
+        void Awake()
+        {
+            group = GetComponent<CanvasGroup>();
+            baseScale = transform.localScale;
+        }
 
         void OnEnable()
         {
@@ -52,11 +57,11 @@ namespace SurgicalFoundations.UI
                 float k = EaseOutCubic(t / duration);
                 float v = Mathf.Lerp(from, to, k);
                 group.alpha = v;
-                transform.localScale = Vector3.one * Mathf.Lerp(0.96f, 1f, v);
+                transform.localScale = baseScale * Mathf.Lerp(0.96f, 1f, v);
                 yield return null;
             }
             group.alpha = to;
-            transform.localScale = Vector3.one;
+            transform.localScale = baseScale;
             running = null;
             done?.Invoke();
         }

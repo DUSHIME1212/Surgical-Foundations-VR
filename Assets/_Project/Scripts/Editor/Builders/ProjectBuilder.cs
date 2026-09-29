@@ -14,6 +14,7 @@ namespace SurgicalFoundations.EditorTools
         public static void BuildEverything()
         {
             LightingRig.ConfigureRendering();
+            ImportedAssets.BuildMaterials();
             PlaceholderFactory.BuildAll();
             SoundBankBuilder.Build();
             UIScreensBuilder.BuildAll();

@@ -114,6 +114,19 @@ namespace SurgicalFoundations.EditorTools
             return c;
         }
 
+        /// <summary>Box collider from renderer bounds (works for imported and skinned meshes). Root must be at identity.</summary>
+        public BoxCollider FitColliderFromRenderers()
+        {
+            var rs = Visual.GetComponentsInChildren<Renderer>();
+            if (rs.Length == 0) return null;
+            var b = rs[0].bounds;
+            foreach (var r in rs) b.Encapsulate(r.bounds);
+            var c = Root.AddComponent<BoxCollider>();
+            c.center = Root.transform.InverseTransformPoint(b.center);
+            c.size = b.size;
+            return c;
+        }
+
         public static Bounds LocalBounds(Transform space, Transform of)
         {
             bool any = false;

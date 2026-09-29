@@ -2,9 +2,9 @@
 
 # 🩺 Surgical Foundations VR
 
-**A laparoscopic skills trainer for Meta Quest 3 — one learner, one theatre, about 15 minutes.**
+**A laparoscopic skills trainer for Meta Quest 3 one learner, one theatre, about 15 minutes.**
 
-Scrub in, gown and glove, place your ports, operate through a laparoscope and close — with real-time protocol feedback, on-device scoring and a full replay.
+Scrub in, gown and glove, place your ports, operate through a laparoscope and close with real-time protocol feedback, on-device scoring and a full replay.
 
 ![Unity](https://img.shields.io/badge/Unity-6000.6.3f1-000000?logo=unity&logoColor=white)
 ![URP](https://img.shields.io/badge/Render%20Pipeline-URP%2017-5CE0C8)
@@ -36,7 +36,7 @@ Scrub in, gown and glove, place your ports, operate through a laparoscope and cl
 
 ## What it is
 
-Surgical Foundations VR teaches the core steps of a laparoscopic procedure in a fully simulated operating theatre. Learners train in **Guided** mode (highlights, voice prompts, live protocol flags) or sit an **Assessment** (no cues, result sent to the LMS). Every action is logged as a protocol event — *on protocol*, *delayed* or *deviation* — and scored on the headset, so it works offline and syncs later.
+Surgical Foundations VR teaches the core steps of a laparoscopic procedure in a fully simulated operating theatre. Learners train in **Guided** mode (highlights, voice prompts, live protocol flags) or sit an **Assessment** (no cues, result sent to the LMS). Every action is logged as a protocol event — *on protocol*, *delayed* or *deviation* and scored on the headset, so it works offline and syncs later.
 
 | | |
 |---|---|

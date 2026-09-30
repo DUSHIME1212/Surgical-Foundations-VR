@@ -28,10 +28,10 @@ with a guide at their shoulder and honest feedback on every step.
 
 **Surgical Foundations VR gives learners somewhere safe to get those basics right first.** In the headset they can:
 
-- 🔁 **Repeat** a full procedure as often as they need, at any hour, without booking a theatre, a mentor or a simulator lab.
-- 🧼 **Build habits** of sterile technique and counting that protect patients, with a mistake shown the moment it happens.
-- 🎯 **Train the awkward hand-eye skills** of keyhole surgery: working through ports while watching a screen.
-- 📈 **See their progress** in clear, consistent feedback, rather than depending on who happened to be supervising.
+- **Repeat** a full procedure as often as they need, at any hour, without booking a theatre, a mentor or a simulator lab.
+- **Build habits** of sterile technique and counting that protect patients, with a mistake shown the moment it happens.
+- **Train the awkward hand-eye skills** of keyhole surgery: working through ports while watching a screen.
+- **See their progress** in clear, consistent feedback, rather than depending on who happened to be supervising.
 
 It doesn't replace supervised training in the real theatre. It helps learners arrive there better prepared, more confident and safer.
 
@@ -41,10 +41,10 @@ It doesn't replace supervised training in the real theatre. It helps learners ar
 
 | | |
 |---|---|
-| 🎓 **Medical students** | A first, low-stress encounter with the theatre: how to scrub, gown, keep things sterile and what a laparoscopic operation looks like from the surgeon's position |
-| 🩺 **Junior surgical trainees** | Repeatable practice of port placement, instrument handling through the scope, and the counting and closing routine |
-| 👩‍🏫 **Educators** | A standard scenario every learner goes through the same way, with the same criteria, making it fairer to compare and easier to see where a group needs help |
-| 🏥 **Training programmes** | Practice on a standalone headset, designed to work without a network and to report results to the learning platform the institution already uses |
+| **Medical students** | A first, low-stress encounter with the theatre: how to scrub, gown, keep things sterile and what a laparoscopic operation looks like from the surgeon's position |
+| **Junior surgical trainees** | Repeatable practice of port placement, instrument handling through the scope, and the counting and closing routine |
+| **Educators** | A standard scenario every learner goes through the same way, with the same criteria, making it fairer to compare and easier to see where a group needs help |
+| **Training programmes** | Practice on a standalone headset, designed to work without a network and to report results to the learning platform the institution already uses |
 
 ---
 

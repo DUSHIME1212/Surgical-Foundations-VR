@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🩺 Surgical Foundations VR
+# Surgical Foundations VR
 
 ### Practise the first steps of keyhole surgery before you ever touch a patient.
 

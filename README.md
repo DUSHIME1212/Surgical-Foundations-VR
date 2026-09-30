@@ -36,14 +36,14 @@ Scrub in, gown and glove, place your ports, operate through a laparoscope and cl
 
 ## What it is
 
-Surgical Foundations VR teaches the core steps of a laparoscopic procedure in a fully simulated operating theatre. Learners train in **Guided** mode (highlights, voice prompts, live protocol flags) or sit an **Assessment** (no cues, result sent to the LMS). Every action is logged as a protocol event — *on protocol*, *delayed* or *deviation* and scored on the headset, so it works offline and syncs later.
+Surgical Foundations VR teaches the core steps of a laparoscopic procedure in a fully simulated operating theatre. Learners train in **Guided** mode (highlights, voice prompts, live protocol flags) or sit an **Assessment** (no cues, result sent to the LMS). Every action is logged as a protocol event *on protocol*, *delayed* or *deviation* and scored on the headset, so it works offline and syncs later.
 
 | | |
 |---|---|
-| 🎯 **Audience** | Medical students and junior trainees |
-| 🥽 **Hardware** | Meta Quest 3 (standalone), controllers or hand tracking |
-| 🧭 **Modes** | Guided · Assessment · Seated or standing |
-| 📊 **Output** | Session score, per-stage scores, top-3 issues, replay, xAPI / SCORM |
+|  **Audience** | Medical students and junior trainees |
+|  **Hardware** | Meta Quest 3 (standalone), controllers or hand tracking |
+|  **Modes** | Guided · Assessment · Seated or standing |
+|  **Output** | Session score, per-stage scores, top-3 issues, replay, xAPI / SCORM |
 
 > **Current state:** a playable grey-box of the whole flow. All 41 asset-list models exist as real-scale placeholders (two already replaced by real rigged characters), all 16 UI screens are built from the design, lighting is baked, and the scenario runs end to end. Detection and scoring logic come next — see the [roadmap](#roadmap).
 
@@ -103,7 +103,7 @@ Wet tissue · brushed steel · surgical drape · glove contamination · skin · 
 1. Clone the repository and open the folder in Unity Hub.
 2. Open **`Assets/_Project/Scenes/Core/00_Bootstrap.unity`** and press **Play**.
 
-> 💡 You can press Play in **any** project scene. `AppBootstrap` pulls in `00_Bootstrap` (XR rig, audio, services) automatically, and a stage scene also loads the theatre around it — handy for iterating on one stage.
+>  You can press Play in **any** project scene. `AppBootstrap` pulls in `00_Bootstrap` (XR rig, audio, services) automatically, and a stage scene also loads the theatre around it — handy for iterating on one stage.
 
 ### Controls
 

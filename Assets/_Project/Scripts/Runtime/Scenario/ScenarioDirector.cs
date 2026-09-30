@@ -2,6 +2,7 @@ using System;
 using SurgicalFoundations.Audio;
 using SurgicalFoundations.Core;
 using UnityEngine;
+using SurgicalFoundations.Contracts;
 
 namespace SurgicalFoundations.Scenario
 {
@@ -17,6 +18,10 @@ namespace SurgicalFoundations.Scenario
 
         public ScenarioStage Stage { get; private set; } = ScenarioStage.Prep;
         public event Action<ScenarioStage> StageChanged;
+
+        /// <summary>Raised for every stage the learner enters, including Summary. Static because listeners in 00_Bootstrap
+        /// (the session recorder) outlive the director, which is recreated with 10_OR_Base.</summary>
+        public static event Action<ScenarioStage> StageEntered;
 
         void Awake()
         {
@@ -80,6 +85,7 @@ namespace SurgicalFoundations.Scenario
 
         void ShowSummary()
         {
+            // Summary first: the session recorder scores the run on StageEntered, before the panel below reads the result.
             SetStage(ScenarioStage.Summary);
             SessionManager.Instance?.EndSession();
             SceneLoader.Instance?.LoadTheatreOnly();
@@ -92,6 +98,7 @@ namespace SurgicalFoundations.Scenario
             Stage = stage;
             if (EventLogger.Instance != null) EventLogger.Instance.CurrentStage = stage;
             StageChanged?.Invoke(stage);
+            StageEntered?.Invoke(stage);
         }
     }
 }

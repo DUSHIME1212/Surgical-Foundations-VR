@@ -4,6 +4,7 @@ using SurgicalFoundations.Scenario;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using SurgicalFoundations.Contracts;
 
 namespace SurgicalFoundations.UI
 {

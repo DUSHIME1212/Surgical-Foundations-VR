@@ -64,6 +64,9 @@ namespace SurgicalFoundations.Interaction
 
         public void SetOpenness(float value) => target = Mathf.Clamp01(value);
 
+        /// <summary>0 = closed, 1 = open. Recorded in session replays.</summary>
+        public float Openness => openness;
+
         void Update()
         {
             openness = Mathf.MoveTowards(openness, target, speed * Time.deltaTime);

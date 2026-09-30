@@ -1,6 +1,7 @@
 using SurgicalFoundations.Core;
 using SurgicalFoundations.Scenario;
 using UnityEngine;
+using SurgicalFoundations.Contracts;
 
 namespace SurgicalFoundations.UI
 {

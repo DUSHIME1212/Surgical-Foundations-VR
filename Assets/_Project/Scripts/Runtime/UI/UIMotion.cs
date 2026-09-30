@@ -22,6 +22,14 @@ namespace SurgicalFoundations.UI
 
         void OnEnable() => StartCoroutine(Run());
 
+        /// <summary>Real values from the session result; call before the panel is shown (or while it waits to animate).</summary>
+        public void SetValues(int newScore, float[] barValues)
+        {
+            score = newScore;
+            if (bars == null || barValues == null) return;
+            for (int i = 0; i < bars.Length && i < barValues.Length; i++) bars[i].value = Mathf.Clamp01(barValues[i]);
+        }
+
         IEnumerator Run()
         {
             foreach (var b in bars) if (b.fill != null) b.fill.anchorMax = new Vector2(0f, 1f);

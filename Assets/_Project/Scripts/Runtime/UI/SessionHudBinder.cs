@@ -1,6 +1,7 @@
 using SurgicalFoundations.Core;
 using TMPro;
 using UnityEngine;
+using SurgicalFoundations.Contracts;
 
 namespace SurgicalFoundations.UI
 {

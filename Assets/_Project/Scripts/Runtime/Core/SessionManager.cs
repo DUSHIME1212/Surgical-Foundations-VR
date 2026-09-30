@@ -1,11 +1,11 @@
 using System;
+using SurgicalFoundations.Contracts;
 using UnityEngine;
 
 namespace SurgicalFoundations.Core
 {
-    public enum TrainingMode { Guided, Assessment }
-    public enum Posture { Standing, Seated }
-    public enum InputMode { Controllers, Hands }
+    // TrainingMode, Posture and InputMode come from the shared contracts library, so a session's settings mean the
+    // same thing on the headset and in the API (NFR-07). Their numeric values match the enums they replaced.
 
     [Serializable]
     public class SessionSettings

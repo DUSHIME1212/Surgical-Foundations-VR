@@ -181,6 +181,16 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 369909182930915643, guid: bee5075adc333de41b828beb43de672c, type: 3}
   m_PrefabInstance: {fileID: 72999094}
   m_PrefabAsset: {fileID: 0}
+--- !u!4 &72999096 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 3782220136593881292, guid: bee5075adc333de41b828beb43de672c, type: 3}
+  m_PrefabInstance: {fileID: 72999094}
+  m_PrefabAsset: {fileID: 0}
+--- !u!4 &72999097 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 2967447443424410345, guid: bee5075adc333de41b828beb43de672c, type: 3}
+  m_PrefabInstance: {fileID: 72999094}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &137006517
 GameObject:
   m_ObjectHideFlags: 0
@@ -213,6 +223,37 @@ Transform:
   - {fileID: 500641965}
   - {fileID: 1409179033}
   m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &247387809
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 247387810}
+  m_Layer: 0
+  m_Name: Instruments
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &247387810
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 247387809}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 2099462168}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &355122180
 GameObject:
@@ -579,6 +620,7 @@ GameObject:
   - component: {fileID: 500641968}
   - component: {fileID: 500641967}
   - component: {fileID: 500641966}
+  - component: {fileID: 500641969}
   m_Layer: 0
   m_Name: ReplayCamera_Free
   m_TagString: MainCamera
@@ -704,6 +746,24 @@ Camera:
   m_OcclusionCulling: 1
   m_StereoConvergence: 10
   m_StereoSeparation: 0.022
+--- !u!114 &500641969
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 500641964}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3451706809c07094f8e3f3171e59c884, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: SurgicalFoundations.Runtime::SurgicalFoundations.Replay.ReplayOrbitCamera
+  target: {x: 0, y: 1.1, z: 0}
+  distance: 3.2
+  minDistance: 0.4
+  maxDistance: 8
+  orbitSpeed: 0.25
+  panSpeed: 0.0025
 --- !u!1001 &507497112
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -3560,6 +3620,74 @@ ReflectionProbe:
   m_UseOcclusionCulling: 1
   m_Importance: 1
   m_CustomBakedTexture: {fileID: 0}
+--- !u!1 &2099462166
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2099462168}
+  - component: {fileID: 2099462167}
+  m_Layer: 0
+  m_Name: ReplayPlayer
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &2099462167
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2099462166}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f5a6783ec6db9f849ad16aa4cc519302, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: SurgicalFoundations.Runtime::SurgicalFoundations.Replay.ReplayPlayer
+  head: {fileID: 355122181}
+  leftHand: {fileID: 72999097}
+  rightHand: {fileID: 72999096}
+  handWristOffset: {x: 0, y: 0, z: -0.08}
+  instrumentPrefabs:
+  - {fileID: 4970373997907613448, guid: 834ef743303351e41ab6e0c0a486ea96, type: 3}
+  - {fileID: 7216932971488540033, guid: 27f43560b2e42be4b949aaf79f44e090, type: 3}
+  - {fileID: 5765316259485704669, guid: a750ef35ffd2aef41a2975fa415d1a88, type: 3}
+  - {fileID: 2159928992546099817, guid: 9587125f96454b44aabfcb2097624c6a, type: 3}
+  - {fileID: 2748320460188603312, guid: 7c4e24e59531ac14fa3076e33e17dd2c, type: 3}
+  - {fileID: 5687589927019724498, guid: 8c758ef329c228340be7a2aacccc77ea, type: 3}
+  - {fileID: 2869624528105607351, guid: e8ed7d83420bf8441bfed2758233b063, type: 3}
+  - {fileID: 8965222324297242048, guid: 11404de87f168ec429410af9c20f13ea, type: 3}
+  - {fileID: 5471171065229997045, guid: c4ba68163fdc72645bc320c8d0c89571, type: 3}
+  - {fileID: 7098815884922390605, guid: ef5a75552b7cb0a4c86cce171eb68ddc, type: 3}
+  - {fileID: 5994548744013434986, guid: b16fc5e8ccf25f24f97281cb72eefd28, type: 3}
+  instrumentRoot: {fileID: 247387810}
+  viewCamera: {fileID: 500641968}
+  orbit: {fileID: 500641969}
+  learnerFov: 80
+  laparoscopeFov: 70
+  freeFov: 55
+  editorReplayPath: 
+--- !u!4 &2099462168
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2099462166}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 247387810}
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &2111145183
 GameObject:
   m_ObjectHideFlags: 0
@@ -3696,3 +3824,4 @@ SceneRoots:
   - {fileID: 882451859}
   - {fileID: 1744980483}
   - {fileID: 137006518}
+  - {fileID: 2099462168}

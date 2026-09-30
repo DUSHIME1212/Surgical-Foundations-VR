@@ -49,7 +49,7 @@ with real-time protocol feedback, on-device scoring and a full session replay.
 18. [Testing & QA](#-testing--qa)
 19. [Troubleshooting & FAQ](#-troubleshooting--faq)
 20. [Roadmap & requirements](#-roadmap--requirements)
-21. [Backend (planned)](#-backend-planned)
+21. [Backend connection](#-backend-connection)
 22. [Contributing & version control](#-contributing--version-control)
 23. [Documentation index](#-documentation-index)
 24. [Credits & licence](#-credits--licence)
@@ -888,36 +888,68 @@ LiberationSans has no U+2713. Create text through `UIKit.Text(...)` (it swaps �
 - [x] 63 original sounds, SoundBank, AudioManager
 - [x] 20 custom URP shaders + gallery
 - [ ] Step detection (scrub motions, sterility contacts, trocar depth/angle/force, drift, count)
-- [ ] On-device scoring engine with versioned scoring config (FR-17, FR-18)
-- [ ] Pose recorder ≥ 30 Hz + replay file writer (FR-21)
-- [ ] Offline sync queue with idempotent event upload (FR-25, NFR-09)
+- [x] On-device scoring engine with versioned scoring config (FR-17, FR-18): scores come from the placeholder events until step detection lands
+- [x] Pose recorder ≥ 30 Hz + replay file writer and upload (FR-21)
+- [x] Replay viewer playback (FR-22): timeline with event markers, learner / laparoscope / free cameras
+- [x] Offline sync queue with idempotent event upload (FR-25, NFR-09)
+- [x] Sign-in (QR device flow, LMS session code, guest), lobby history and assignments, real summary
 - [ ] Fulcrum-constrained instrument movement through ports (FR-10)
 - [ ] Obi Softbody dissection tissue (FR-14)
 - [ ] Final art, recorded voice-over, licensed fonts
-- [ ] **R2:** vessel-injury branch logic, tissue tearing and bleeding, camera assistant, users & cohorts
+- [ ] **R2:** vessel-injury branch logic, tissue tearing and bleeding, camera assistant (users, cohorts and analytics are done on the backend)
 - [ ] **R3:** haptics, live spectating
 
 The sprint-by-sprint plan, decisions and risks are in **[Docs/ExecutionPlan.md](ExecutionPlan.md)**.
 
 ---
 
-## 🌐 Backend (planned)
+## 🌐 Backend connection
 
-Decided in the production asset list: **ASP.NET Core Web API on .NET 10 (LTS)** with PostgreSQL via EF Core and S3-compatible object storage. A shared C# contracts library (targeting **netstandard2.1** so Unity can load it) keeps the event format identical on headset and server.
+The backend lives next to this project in **`../Studium XR Backend`** (ASP.NET Core on .NET 10, PostgreSQL, S3-compatible storage). Its [README](../../Studium%20XR%20Backend/README.md) explains every design decision and why it matters.
 
-| Module | Main endpoints | Release |
-|---|---|:-:|
-| Auth | `POST /auth/device-code`, `POST /auth/token`, `GET /auth/sso/callback` | MVP |
-| Sessions | `POST /sessions`, `POST /sessions/:id/complete` | MVP |
-| Events | `POST /sessions/:id/events` (batched, client UUIDs) | MVP |
-| Replays | `POST /replays` (pre-signed upload), `GET /replays/:id` | MVP |
-| Scoring config | `GET /config/scoring/:version` | MVP |
-| xAPI worker | queue job with retry/backoff to the LRS | MVP |
-| SCORM bridge | `GET /scorm/launch`, `POST /scorm/result` | MVP |
-| Users & cohorts | `/users`, `/cohorts`, `/assignments` | R2 |
-| Cohort analytics | `GET /cohorts/:id/stats` | R2 |
+**Shared contracts.** `Packages/manifest.json` imports `com.studiumxr.surgicalfoundations.contracts` from the backend folder as a local package. `ProtocolEvent`, `ScenarioStage`, `EventClass`, `TrainingMode`, `Posture` and `InputMode` now come from there, so the headset and the API can't disagree about the data (NFR-07). Keep both folders side by side.
 
-The headset scores everything itself; the backend only stores, syncs, reports and serves replays. The instructor dashboard is React, with a TypeScript client generated from the API's OpenAPI spec.
+**Headset services** (`Scripts/Runtime/Backend`, hosted by `BackendServices` in `00_Bootstrap`):
+
+| Class | Job |
+|---|---|
+| `AuthService` | Device-code sign-in (QR from `GET /auth/device/qr`), LMS session code, guest mode. Rotating refresh token in app-private storage; access token in memory. |
+| `SyncQueue` | One file per upload job in `persistentDataPath/sync`, sent in order per user, retried with backoff, dropped only if the server rejects it for good. |
+| `SessionRecorder` | Creates the session on *Start scenario*, batches protocol events every 10 s, scores the run when the summary opens, and queues everything. |
+| `ScoringEngine` / `ScoringConfigStore` | On-device scoring (FR-17) against the cached or bundled scoring config, pinned per session (FR-18). |
+| `LearnerData` | Assignments and recent attempts for the lobby, cached per user for offline use. |
+| `Replay/PoseRecorder` | Records head, hands (controller or tracked hand), instruments with jaw openness, and the laparoscope at 30 Hz on the session clock. Streams to `persistentDataPath/replays/*.part`, then compresses to `.sfr` off the main thread and queues the upload after the result. |
+| `Replay/ReplayPlayer` (+ `ReplayOrbitCamera`, `UI/ReplayControlsBinder`) | Playback in `90_ReplayViewer`. Drives the ghost head and hands, re-creates each recorded instrument (with jaws), and switches between learner, laparoscope and free cameras. Loads from `LoadSession(json)` (WebGL bridge), `-replay <url|path>` (desktop), or the *Editor Replay Path* field. **Surgical Foundations ▸ Tools ▸ Wire Replay Viewer** re-wires the scene without touching its lighting. |
+| `Replay/ReplayWriter` / `ReplayFile` | The v1 file format (spec in the backend's `docs/replay-format.md`), and a reader with seekable, interpolated sampling for the replay viewer. |
+
+**Tests.** `Assets/_Project/Tests/EditMode` covers the replay format (round trip, rotation precision, gaps, bad files) and the scoring engine. Run them from **Window ▸ General ▸ Test Runner ▸ EditMode**.
+
+**Screens.**
+
+- `SignInPanel` (screen 01): live QR code and user code, an in-VR keypad for LMS codes, and *Train as guest*. Returning learners skip it.
+- `LobbyBinder` (screen 02): name, next assignment, recent attempts, sync status, sign out.
+- `SummaryBinder` (screen 16): the real score, stage bars, top 3 issues, retry of the weakest stage, and upload status.
+
+The builders wire all three; re-run **Build ▸ 3 · UI Screens** after changing them.
+
+**Running against a local API.**
+
+1. Start the API:
+
+   ```bash
+   dotnet run --project "../Studium XR Backend/src/SurgicalFoundations.Api" --launch-profile http
+   ```
+
+2. In Unity, run **Surgical Foundations ▸ Backend ▸ Create or Select Settings** and **Allow HTTP in Development Builds**.
+3. Connect the Quest over USB and forward the port:
+
+   ```bash
+   adb reverse tcp:5010 tcp:5010
+   ```
+
+   In the editor, Play mode reaches `localhost` directly.
+
+4. **Backend ▸ Reset Local Sign-in and Upload Queue** returns the editor to a first-launch state.
 
 ---
 

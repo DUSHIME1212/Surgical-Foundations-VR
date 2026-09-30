@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using SurgicalFoundations.Audio;
 using SurgicalFoundations.Core;
 using UnityEngine;
+using SurgicalFoundations.Contracts;
 
 namespace SurgicalFoundations.Scenario
 {

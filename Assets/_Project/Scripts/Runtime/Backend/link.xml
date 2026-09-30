@@ -1,0 +1,7 @@
+<!--
+  IL2CPP managed-code stripping can remove constructors and fields that are only reached through reflection.
+  Newtonsoft creates the shared contract types that way, so keep that assembly intact.
+-->
+<linker>
+  <assembly fullname="SurgicalFoundations.Contracts" preserve="all" />
+</linker>

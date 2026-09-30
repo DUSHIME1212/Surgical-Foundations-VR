@@ -386,6 +386,8 @@ namespace SurgicalFoundations.EditorTools
             Ser.Set(loaderGo.GetComponent<SceneLoader>(), "fader", fader.GetComponent<ScreenFader>());
             Ser.Set(loaderGo.GetComponent<SceneLoader>(), "xrOrigin", xr.GetComponent<Unity.XR.CoreUtils.XROrigin>());
             new GameObject("AppBootstrap", typeof(AppBootstrap)).transform.SetParent(services);
+            // Sign-in, offline upload queue, session recorder, scoring config (see Backend/). Lives here so it never unloads.
+            new GameObject("BackendServices", typeof(SurgicalFoundations.Backend.BackendServices)).transform.SetParent(services);
 
             // Global UI: subtitles and pause live here so they work in every scene.
             var ui = Group("--- UI ---");
@@ -777,6 +779,7 @@ namespace SurgicalFoundations.EditorTools
             panel.pivot = new Vector2(0.5f, 0f);
             panel.anchoredPosition = new Vector2(0, 40);
 
+            ReplayViewerWiring.Apply(s); // playback: ReplayPlayer drives the ghost, instruments and cameras
             Save(s, "Tools", SceneIds.ReplayViewer);
         }
 

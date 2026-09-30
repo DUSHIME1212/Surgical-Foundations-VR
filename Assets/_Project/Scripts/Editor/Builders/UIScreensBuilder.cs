@@ -7,6 +7,7 @@ using UnityEditor;
 using UnityEngine;
 using UnityEngine.UI;
 using static SurgicalFoundations.EditorTools.UIKit;
+using SurgicalFoundations.Contracts;
 
 namespace SurgicalFoundations.EditorTools
 {
@@ -96,6 +97,18 @@ namespace SurgicalFoundations.EditorTools
 
         static RectTransform HRow(Transform parent, float spacing = 16) => HStack(parent, spacing);
 
+        /// <summary>Keeps text on one line inside its box: shrinks the font as far as <paramref name="minSize"/>, then ellipsis.</summary>
+        static TextMeshProUGUI OneLine(TextMeshProUGUI t, float minSize)
+        {
+            t.textWrappingMode = TextWrappingModes.NoWrap;
+            t.enableAutoSizing = true;
+            t.fontSizeMax = t.fontSize;
+            t.fontSizeMin = minSize;
+            // LiberationSans has no "…" glyph; long values are split into lines by the binders instead (see SignInPanel.UrlText).
+            t.overflowMode = TextOverflowModes.Truncate;
+            return t;
+        }
+
         static TextMeshProUGUI Flex(TextMeshProUGUI t) { LE(t, -1, -1, 1); return t; }
 
         // ───────────── 01 Sign in ─────────────
@@ -103,6 +116,9 @@ namespace SurgicalFoundations.EditorTools
         static void S01_SignIn()
         {
             var p = Screen("UI_01_SignIn", 1100, V.Panel, 56, 30, out var canvas);
+            // SignInPanel drives the real sign-in (device flow + LMS session code) against the API.
+            var panel = canvas.gameObject.AddComponent<SignInPanel>();
+            Ser.Set(panel, "theme", T);
             var head = HRow(p, 26);
             Icon(head, Logo, 88, T.accent, "Logo");
             var titles = VStack(head, 6, 0, "Titles");
@@ -110,12 +126,13 @@ namespace SurgicalFoundations.EditorTools
             Text(titles, "Surgical Foundations", TS.Title);
             Text(titles, "Laparoscopic skills · single learner · about 15 minutes", TS.Secondary);
 
+            // 380 = 30 + 200 (QR) + 18 + two caption lines + 30, with room to spare; 340 clipped the caption.
             var cards = HRow(p, 26);
-            LE(cards, -1, 340);
+            LE(cards, -1, 380);
             var qrCard = Surface(cards, V.Card, 30, 18, -1, "QRCard");
             qrCard.GetComponent<VerticalLayoutGroup>().childAlignment = TextAnchor.UpperCenter;
             qrCard.GetComponent<VerticalLayoutGroup>().childControlWidth = true;
-            LE(qrCard, -1, 340, 1);
+            LE(qrCard, 0, 380, 1); // preferred width 0 + equal flex: both cards get exactly half
             var qrHolder = HStack(qrCard, 0, "QRHolder", TextAnchor.MiddleCenter);
             var qrBg = Rect("QRBackground", qrHolder);
             LE(qrBg, 200, 200, 0);
@@ -123,20 +140,62 @@ namespace SurgicalFoundations.EditorTools
             var qr = Icon(qrBg, QR, 164, T.backdrop, "QR");
             qr.GetComponent<LayoutElement>().ignoreLayout = true;
             var qrt = (RectTransform)qr.transform; qrt.anchorMin = qrt.anchorMax = new Vector2(0.5f, 0.5f); qrt.sizeDelta = new Vector2(164, 164);
+            // The live QR (a PNG from GET /auth/device/qr) replaces the placeholder once it arrives.
+            var live = Rect("QRLive", qrBg);
+            live.anchorMin = live.anchorMax = new Vector2(0.5f, 0.5f); live.sizeDelta = new Vector2(184, 184);
+            live.gameObject.AddComponent<LayoutElement>().ignoreLayout = true;
+            var liveImg = live.gameObject.AddComponent<RawImage>();
+            liveImg.raycastTarget = false; liveImg.enabled = false;
             Text(qrCard, "Scan with your phone to sign in with your institution account", TS.Secondary, T.textPrimary, TextAlignmentOptions.Center);
 
             var codeCard = Surface(cards, V.Card, 34, 16, -1, "CodeCard");
-            LE(codeCard, -1, 340, 1);
+            LE(codeCard, 0, 380, 1);
             Spacer(codeCard, 8);
             Text(codeCard, "Or enter this code at", TS.Eyebrow);
-            Text(codeCard, "[yourinstitution]/link", TS.Mono, T.accent);
-            Text(codeCard, "4F7-K2Q", TS.MonoLarge);
-            Text(codeCard, "Code refreshes every 5 minutes", TS.Secondary);
+            // URLs have no spaces to wrap at and the code is 9 characters: keep both on one line and shrink to fit.
+            var url = OneLine(Text(codeCard, "[yourinstitution]/auth/device", TS.Mono, T.accent), 16);
+            var code = OneLine(Text(codeCard, "····-····", TS.MonoLarge), 40);
+            var hint = Text(codeCard, "Code refreshes every 15 minutes", TS.Secondary);
+
+            // LMS session code: an in-VR keypad of the 28 characters codes use, so no system keyboard is needed.
+            var lms = Surface(p, V.Card, 34, 14, -1, "LaunchCodeCard");
+            Text(lms, "Session code from your learning platform", TS.Eyebrow);
+            var lmsCode = OneLine(Text(lms, "___-___", TS.MonoLarge, T.accent, TextAlignmentOptions.Center), 40);
+            var lmsMsg = Text(lms, "Shown in your learning platform when you open this activity.", TS.Secondary, null, TextAlignmentOptions.Center);
+            const string alphabet = "BCDFGHJKLMNPQRSTVWXZ23456789";
+            for (int row = 0; row < 4; row++)
+            {
+                var keys = HRow(lms, 12); LE(keys, -1, 68);
+                for (int k = 0; k < 7; k++)
+                {
+                    var ch = alphabet[row * 7 + k].ToString();
+                    var key = Button(keys, ch, BV.Secondary, 68, -1, 1);
+                    UnityEditor.Events.UnityEventTools.AddStringPersistentListener(key.onClick, panel.KeypadPress, ch);
+                }
+            }
+            var lmsActions = HRow(lms, 18);
+            Button(lmsActions, "Back", BV.Secondary, 88, 200, 0, panel.ShowDeviceSignIn);
+            Button(lmsActions, "Delete", BV.Secondary, 88, 200, 0, panel.KeypadBackspace);
+            Button(lmsActions, "Sign in", BV.Primary, 88, -1, 1, panel.SubmitLaunchCode);
+            lms.gameObject.SetActive(false);
 
             var buttons = HRow(p, 22);
-            Advance(Button(buttons, "Continue from LMS launch", BV.Primary, 92, -1, 1.7f));
-            Advance(Button(buttons, "Enter session code", BV.Secondary, 92, -1, 1f));
-            StatusLine(p, "Offline — you can still train. Results will queue on this headset and sync when you reconnect.", T.warning);
+            Button(buttons, "Enter LMS session code", BV.Primary, 92, -1, 1.7f, panel.ShowLaunchCodeEntry);
+            Button(buttons, "Train as guest", BV.Secondary, 92, -1, 1f, panel.ContinueAsGuest);
+            var status = StatusLine(p, "Connecting…", T.accent);
+
+            Ser.Set(panel, "deviceCards", cards.gameObject);
+            Ser.Set(panel, "qrImage", liveImg);
+            Ser.Set(panel, "qrPlaceholder", qr.gameObject);
+            Ser.Set(panel, "codeLabel", code);
+            Ser.Set(panel, "urlLabel", url);
+            Ser.Set(panel, "hintLabel", hint);
+            Ser.Set(panel, "launchCodeCard", lms.gameObject);
+            Ser.Set(panel, "launchCodeLabel", lmsCode);
+            Ser.Set(panel, "launchMessage", lmsMsg);
+            Ser.Set(panel, "mainButtons", buttons.gameObject);
+            Ser.Set(panel, "statusLabel", status.GetComponentInChildren<TMP_Text>());
+            Ser.Set(panel, "statusDot", status.GetChild(0).GetComponent<Image>());
             Save(canvas.gameObject);
         }
 
@@ -146,13 +205,15 @@ namespace SurgicalFoundations.EditorTools
         {
             var root = NewRoot("UI_02_Lobby");
             var actions = root.AddComponent<UIActions>();
+            var binder = root.AddComponent<LobbyBinder>();
+            Ser.Set(binder, "theme", T);
 
             // Centre
             var c = Screen("Panel_Main", 1180, V.Panel, 52, 18, out var cc);
             Place(cc, root.transform, Vector3.zero);
-            Text(c, "Welcome back, [Learner name]", TS.Secondary);
+            var welcome = Text(c, "Welcome back, [Learner name]", TS.Secondary);
             Text(c, "Laparoscopic basics", TS.Title);
-            Text(c, "Assigned by [Instructor] · Difficulty [Level] · Prep → Access → Operate → Close", TS.Secondary);
+            var assignment = Text(c, "Assigned by [Instructor] · Difficulty [Level] · Prep → Access → Operate → Close", TS.Secondary);
             Spacer(c, 6);
             Text(c, "Mode", TS.Eyebrow);
             var modes = HRow(c, 22); LE(modes, -1, 132);
@@ -168,6 +229,15 @@ namespace SurgicalFoundations.EditorTools
             var go = HRow(c, 22);
             Button(go, "Tutorial", BV.Secondary, 92, 250, 0, actions.GoToSkillsLab);
             Button(go, "Start scenario", BV.Primary, 92, -1, 1, actions.StartScenario);
+            var foot = HRow(c, 16);
+            var sync = StatusLine(foot, "All results synced", T.accent);
+            LE(sync, -1, -1, 1);
+            var account = Button(foot, "Sign out", BV.Link, 64, 220, 0, binder.SignOutOrIn);
+            Ser.Set(binder, "welcome", welcome);
+            Ser.Set(binder, "assignmentLine", assignment);
+            Ser.Set(binder, "syncStatus", sync.GetComponentInChildren<TMP_Text>());
+            Ser.Set(binder, "syncDot", sync.GetChild(0).GetComponent<Image>());
+            Ser.Set(binder, "accountButtonLabel", account.GetComponentInChildren<TMP_Text>());
 
             // Left — recent attempts
             var l = Screen("Panel_RecentAttempts", 680, V.Panel, 44, 10, out var lc);
@@ -175,12 +245,19 @@ namespace SurgicalFoundations.EditorTools
             Text(l, "Recent attempts", TS.Eyebrow);
             Spacer(l, 6);
             string[] modesTxt = { "Guided", "Guided", "Assessment" };
+            var keys = new Object[3];
+            var values = new Object[3];
             for (int i = 0; i < 3; i++)
             {
-                KV(l, $"[Date] · {modesTxt[i]}", "[score]", T.accent, true, 56);
+                var row = KV(l, $"[Date] · {modesTxt[i]}", "[score]", T.accent, true, 56);
+                keys[i] = row.GetChild(0).GetComponent<TMP_Text>();
+                values[i] = row.GetChild(1).GetComponent<TMP_Text>();
                 Divider(l);
             }
-            Text(l, "Last 10 attempts with date, score and duration", TS.Small);
+            var footer = Text(l, "Last 10 attempts with date, score and duration", TS.Small);
+            Ser.SetArray(binder, "attemptKeys", keys);
+            Ser.SetArray(binder, "attemptValues", values);
+            Ser.Set(binder, "attemptsFooter", footer);
 
             // Right — settings
             var r = Screen("Panel_Settings", 680, V.Panel, 44, 14, out var rc);
@@ -580,6 +657,9 @@ namespace SurgicalFoundations.EditorTools
         {
             var root = NewRoot("UI_16_Summary");
             var actions = root.AddComponent<UIActions>();
+            // SummaryBinder replaces the prototype numbers below with the on-device result when the panel opens.
+            var binder = root.AddComponent<SummaryBinder>();
+            Ser.Set(binder, "theme", T);
             var canvas = Canvas("Panel", 1560, 1000);
             canvas.gameObject.AddComponent<UIPanel>();
             Place(canvas, root.transform, Vector3.zero);
@@ -589,16 +669,21 @@ namespace SurgicalFoundations.EditorTools
 
             var left = VStack(cols, 16, 0, "Left");
             LE(left, -1, -1, 1);
-            Text(left, "Closure completed · Guided mode · 14:20", TS.Eyebrow);
+            var eyebrow = Text(left, "Closure completed · Guided mode · 14:20", TS.Eyebrow);
             Text(left, "Session summary", TS.Heading);
             var score = HRow(left, 26);
             var scoreText = Text(score, "82", TS.Display, null, TextAlignmentOptions.Left, "Score");
-            Chip(score, "Pass", T.onAccent, T.accent, 52);
-            Text(left, "Overall · pass mark [threshold]", TS.Secondary);
+            var chip = Chip(score, "Pass", T.onAccent, T.accent, 52);
+            var passMark = Text(left, "Overall · pass mark [threshold]", TS.Secondary);
+            Ser.Set(binder, "eyebrow", eyebrow);
+            Ser.Set(binder, "passMark", passMark);
+            Ser.Set(binder, "chipLabel", chip.GetComponentInChildren<TMP_Text>());
+            Ser.Set(binder, "chipFill", chip.GetComponent<Image>());
             Spacer(left, 18);
             Text(left, "Stage scores", TS.Eyebrow);
             (string n, float v, Color c)[] stages = { ("Prep", 0.72f, T.accent), ("Access", 0.52f, T.warning), ("Operate", 0.76f, T.accent), ("Close", 0.82f, T.accent) };
             var bars = new UIMotion.Bar[stages.Length];
+            var stageValues = new Object[stages.Length];
             for (int i = 0; i < stages.Length; i++)
             {
                 var r = HRow(left, 20); LE(r, -1, 50);
@@ -611,10 +696,10 @@ namespace SurgicalFoundations.EditorTools
                 holderLayout.childForceExpandWidth = true;
                 holderLayout.childAlignment = TextAnchor.MiddleLeft;
                 var fill = Bar(track, stages[i].v, stages[i].c, 0.6f, T.textPrimary, null, 14);
-                Text(r, "[n]", TS.Mono, stages[i].c == T.warning ? T.warning : T.textSecondary, TextAlignmentOptions.Right);
+                stageValues[i] = Text(r, "[n]", TS.Mono, stages[i].c == T.warning ? T.warning : T.textSecondary, TextAlignmentOptions.Right);
                 bars[i] = new UIMotion.Bar { fill = fill, value = stages[i].v };
             }
-            Text(left, "White tick = stage pass mark. Access is below its pass mark.", TS.Secondary);
+            Text(left, "White tick = stage pass mark.", TS.Secondary);
 
             var right = VStack(cols, 16, 0, "Right");
             LE(right, -1, -1, 1);
@@ -625,22 +710,36 @@ namespace SurgicalFoundations.EditorTools
                 ("02:29", "Glove touched non-sterile edge", "Deviation · Prep · recovered", T.danger),
                 ("09:12", "Left instrument drifted out of view", "Delayed · Operate", T.warning),
             };
-            foreach (var (time, title, meta, c) in top)
+            var cards = new Object[top.Length];
+            var times = new Object[top.Length];
+            var titles = new Object[top.Length];
+            var metas = new Object[top.Length];
+            for (int i = 0; i < top.Length; i++)
             {
+                var (time, title, meta, c) = top[i];
                 var card = Surface(right, V.Card, 26, 0, -1, "Issue");
                 var r = HRow(card, 22);
                 r.GetComponent<HorizontalLayoutGroup>().childAlignment = TextAnchor.UpperLeft;
-                Text(r, time, TS.Mono);
+                times[i] = Text(r, time, TS.Mono);
                 var v = VStack(r, 4, 0, "Text");
                 LE(v, -1, -1, 1);
-                Text(v, title, TS.BodyStrong);
-                Text(v, meta, TS.Secondary, c);
+                titles[i] = Text(v, title, TS.BodyStrong);
+                metas[i] = Text(v, meta, TS.Secondary, c);
+                cards[i] = card.gameObject;
             }
             var b = HRow(right, 18);
-            Button(b, "Retry Access stage", BV.Primary, 90, -1, 1, actions.RetryAccess);
+            var retry = Button(b, "Retry Access stage", BV.Primary, 90, -1, 1, binder.RetryWeakestStage);
             Button(b, "Retry full scenario", BV.Secondary, 90, -1, 1, actions.RetryScenario);
             Button(right, "Back to lobby", BV.Link, 70, -1, -1, actions.BackToLobby);
-            StatusLine(right, "Offline — result and replay queued, will sync to your LMS automatically", T.warning);
+            var status = StatusLine(right, "Offline — result and replay queued, will sync to your LMS automatically", T.warning);
+            Ser.SetArray(binder, "stageValues", stageValues);
+            Ser.SetArray(binder, "issueCards", cards);
+            Ser.SetArray(binder, "issueTimes", times);
+            Ser.SetArray(binder, "issueTitles", titles);
+            Ser.SetArray(binder, "issueMetas", metas);
+            Ser.Set(binder, "retryLabel", retry.GetComponentInChildren<TMP_Text>());
+            Ser.Set(binder, "syncStatus", status.GetComponentInChildren<TMP_Text>());
+            Ser.Set(binder, "syncDot", status.GetChild(0).GetComponent<Image>());
 
             var motion = canvas.gameObject.AddComponent<UIMotion>();
             Ser.Set(motion, "scoreLabel", scoreText);
@@ -654,6 +753,7 @@ namespace SurgicalFoundations.EditorTools
                 arr.GetArrayElementAtIndex(i).FindPropertyRelative("value").floatValue = bars[i].value;
             }
             so.ApplyModifiedPropertiesWithoutUndo();
+            Ser.Set(binder, "motion", motion);
             Save(root);
         }
 
@@ -773,14 +873,22 @@ namespace SurgicalFoundations.EditorTools
         static void ReplayControls()
         {
             var p = Screen("UI_90_ReplayControls", 1400, V.Panel, 44, 18, out var canvas);
-            Text(p, "Replay · [Learner name] · [Date]", TS.Eyebrow);
-            Text(p, "Session replay", TS.Heading);
+            // ReplayControlsBinder drives this panel from the ReplayPlayer in 90_ReplayViewer.
+            var binder = canvas.gameObject.AddComponent<ReplayControlsBinder>();
+            Ser.Set(binder, "theme", T);
+            var title = Text(p, "Replay · [Learner name] · [Date]", TS.Eyebrow);
+            var heading = Text(p, "Session replay", TS.Heading);
             var timeline = Rect("Timeline", p);
             LE(timeline, -1, 40);
+            // Invisible hit area: click or drag anywhere on the bar to seek.
+            var hit = timeline.gameObject.AddComponent<Image>();
+            hit.color = new Color(0, 0, 0, 0);
+            Ser.Set(timeline.gameObject.AddComponent<TimelineScrubber>(), "controls", binder);
             var holder = VStack(timeline, 0, 0, "Holder", TextAnchor.MiddleLeft);
             Stretch(holder);
             var fill = Bar(holder, 0.38f, T.accent, 0.38f, T.textPrimary, null, 12);
             (float at, Color c)[] marks = { (0.17f, T.danger), (0.38f, T.danger), (0.55f, T.accent), (0.64f, T.warning), (0.88f, T.accent) };
+            RectTransform template = null;
             foreach (var (at, c) in marks)
             {
                 var m = Rect("Event", fill.parent);
@@ -788,15 +896,28 @@ namespace SurgicalFoundations.EditorTools
                 m.sizeDelta = new Vector2(16, 16);
                 var i = m.gameObject.AddComponent<Image>();
                 i.sprite = AssetDatabase.LoadAssetAtPath<Sprite>(SFPaths.Sprites + "/circle.png"); i.color = c; i.raycastTarget = false;
+                template ??= m; // the preview dots; at runtime the first one is the template for real event markers
             }
+            var caption = Text(p, "05:24 · Deviation · Trocar entered too deep", TS.Secondary, T.danger);
             var r = HRow(p, 16);
-            Button(r, "Play", BV.Primary, 76, 180, 0);
-            Text(r, "05:24 / 14:20", TS.Mono, T.textPrimary);
+            var play = Button(r, "Play", BV.Primary, 76, 180, 0, binder.TogglePlay);
+            var time = Text(r, "05:24 / 14:20", TS.Mono, T.textPrimary);
             Spacer(r, -1, 1);
             Text(r, "Camera", TS.Eyebrow);
-            Button(r, "Learner", BV.ChipSelected, 60);
-            Button(r, "Laparoscope", BV.Chip, 60);
-            Button(r, "Free", BV.Chip, 60);
+            var learner = Button(r, "Learner", BV.ChipSelected, 60, -1, -1, binder.ShowLearnerView);
+            var scope = Button(r, "Laparoscope", BV.Chip, 60, -1, -1, binder.ShowLaparoscopeView);
+            var free = Button(r, "Free", BV.Chip, 60, -1, -1, binder.ShowFreeView);
+
+            Ser.Set(binder, "title", title);
+            Ser.Set(binder, "heading", heading);
+            Ser.Set(binder, "timeline", timeline);
+            Ser.Set(binder, "fill", fill);
+            Ser.Set(binder, "playhead", fill.parent.Find("Marker"));
+            Ser.Set(binder, "markerTemplate", template);
+            Ser.Set(binder, "playLabel", play.GetComponentInChildren<TMP_Text>());
+            Ser.Set(binder, "timeLabel", time);
+            Ser.Set(binder, "caption", caption);
+            Ser.SetArray(binder, "cameraButtons", new Object[] { learner, scope, free });
             Save(canvas.gameObject);
         }
 

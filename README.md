@@ -118,13 +118,14 @@ In **Guided** mode this feedback appears in the moment, like a mentor at your sh
 
 **A playable prototype of the whole experience.** A learner can walk through every step from sign-in to results in a lit, furnished operating theatre with a realistic patient, scrub sink, staff and equipment. All sixteen screens of the headset interface are built, and voice prompts and sound are in place.
 
+**Connected to its server.** Learners sign in by scanning a QR code with their phone, or with a code from their learning platform, or train as a guest. The headset scores each run itself and shows the real result. It keeps every result safe while offline and uploads it when Wi-Fi returns; from there results reach the institution's learning platform (xAPI and SCORM). The lobby shows each learner's assignments and recent attempts. The server and the reasons behind its design are described in the [backend README](../Studium%20XR%20Backend/README.md).
+
 **Coming next:**
 
 - Recognising the learner's actions automatically (scrub movements, sterile contacts, port angle and depth, counts). Today learners move on with a *Continue* button.
-- Scoring on the headset, with the results screen showing real scores.
 - Recording sessions so learners and educators can replay them from any angle.
-- Sending results to the institution's learning platform, even after training offline.
-- Later: realistic tissue that responds to instruments, bleeding complications, a virtual camera assistant, instructor dashboards for whole cohorts, and haptic feedback.
+- A web dashboard where institutions and learners follow progress. The server side of this is already built.
+- Later: realistic tissue that responds to instruments, bleeding complications, a virtual camera assistant and haptic feedback.
 
 ---
 

@@ -22,7 +22,10 @@ namespace SurgicalFoundations.EditorTools
         public const string Sprites = Root + "/UI/Sprites";
         public const string Icons = Root + "/UI/Icons";
 
-        public const string XROriginPrefab = "Assets/VRTemplateAssets/Prefabs/Setup/Complete XR Origin Set Up Variant.prefab";
+        // Hands variant = XRI "XR Origin Hands" rig: controllers + tracked XR Hands meshes, switched automatically.
+        public const string XROriginPrefab = "Assets/VRTemplateAssets/Prefabs/Setup/Complete XR Origin Set Up Hands Variant.prefab";
+        public const string XRHandsLeftModel = "Assets/Samples/XR Hands/1.9.0/HandVisualizer/Models/LeftHand.fbx";
+        public const string XRHandsRightModel = "Assets/Samples/XR Hands/1.9.0/HandVisualizer/Models/RightHand.fbx";
 
         public const string MenuRoot = "Surgical Foundations/";
     }

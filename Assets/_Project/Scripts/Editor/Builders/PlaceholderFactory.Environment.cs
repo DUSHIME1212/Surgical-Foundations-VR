@@ -1,3 +1,4 @@
+using System.Linq;
 using SurgicalFoundations.Audio;
 using SurgicalFoundations.Lighting;
 using SurgicalFoundations.Placeholders;
@@ -315,6 +316,27 @@ namespace SurgicalFoundations.EditorTools
         static void ScrubSink()
         {
             var b = new PB("EQ_ScrubSink");
+            if (ImportedSink(b, out var spouts, out float basinY, out float basinZ))
+            {
+                string[] names = spouts.Count == 3 ? new[] { "L", "C", "R" } : spouts.Select((_, i) => i.ToString()).ToArray();
+                for (int i = 0; i < spouts.Count; i++)
+                {
+                    var p = spouts[i];
+                    b.Box($"Sensor_{names[i]}", new Vector3(p.x, 1.47f, -0.285f), new Vector3(0.05f, 0.035f, 0.02f), "Polymer_Dark");
+                    b.Box($"Sensor_{names[i]}_LED", new Vector3(p.x, 1.47f, -0.274f), new Vector3(0.01f, 0.01f, 0.002f), "Indicator_Mint");
+                    WaterSocket(b, names[i], p, p.y - basinY);
+                }
+                b.Box("SoapDispenser", new Vector3(-0.25f, 1.62f, -0.26f), new Vector3(0.1f, 0.2f, 0.08f), "Polymer_White");
+                b.Box("Brushes", new Vector3(0.25f, 1.62f, -0.27f), new Vector3(0.2f, 0.25f, 0.06f), "Polymer_White");
+                b.Quad("SoapLather", new Vector3(spouts[0].x, basinY + 0.012f, basinZ), new Vector2(0.3f, 0.26f), "FX_SoapLather", new Vector3(90, 0, 0));
+                b.FitColliderFromRenderers();
+                b.Info("EQ-05", "Scrub sink + sensor taps", "Equipment", AssetRelease.MVP, 17000,
+                    $"Imported (Imports/scrubbing-sink, glTF); {spouts.Count} sensor taps with water sockets at the spouts (WaterSocket_*); soap dispenser.").isPlaceholder = false;
+                b.MakeStatic(false);
+                KeepFxOutOfBatching(b);
+                b.Save(Folder("Equipment"));
+                return;
+            }
             b.Box("Splashback", new Vector3(0, 1.25f, -0.3f), new Vector3(1.7f, 1.1f, 0.03f), "Stainless_Satin");
             b.Box("Trough_Bottom", new Vector3(0, 0.8f, -0.05f), new Vector3(1.6f, 0.03f, 0.5f), "Stainless_Brushed");
             b.Box("Trough_Front", new Vector3(0, 0.93f, 0.19f), new Vector3(1.6f, 0.26f, 0.03f), "Stainless_Brushed");
@@ -330,13 +352,7 @@ namespace SurgicalFoundations.EditorTools
                 b.Cyl($"Tap_{n}_Spout", new Vector3(x, 1.5f, -0.07f), 0.02f, 0.06f, "Stainless_Brushed");
                 b.Box($"Sensor_{n}", new Vector3(x, 1.15f, -0.28f), new Vector3(0.05f, 0.035f, 0.02f), "Polymer_Dark");
                 b.Box($"Sensor_{n}_LED", new Vector3(x, 1.15f, -0.269f), new Vector3(0.01f, 0.01f, 0.002f), "Indicator_Mint");
-                var w = b.Pivot($"WaterSocket_{n}", new Vector3(x, 1.47f, -0.07f), new Vector3(90, 0, 0));
-                var em = w.gameObject.AddComponent<AmbientEmitter>();
-                em.Sound = SoundId.AMB_TapWater;
-                // Visible stream (SF/FX/Water Stream): socket +Z points down, so offset along +Z and undo the socket tilt.
-                var stream = b.Cyl("WaterStream", new Vector3(0, 0, 0.16f), 0.012f, 0.32f, "FX_WaterStream", new Vector3(-90, 0, 0), w);
-                stream.GetComponent<MeshRenderer>().shadowCastingMode = ShadowCastingMode.Off;
-                w.gameObject.SetActive(false); // switched on by the sensor
+                WaterSocket(b, n, new Vector3(x, 1.47f, -0.07f), 0.32f);
             }
             b.Box("SoapDispenser", new Vector3(0, 1.45f, -0.26f), new Vector3(0.1f, 0.2f, 0.08f), "Polymer_White");
             b.Quad("SoapLather", new Vector3(-0.4f, 0.818f, -0.05f), new Vector2(0.32f, 0.28f), "FX_SoapLather", new Vector3(90, 0, 0));
@@ -344,7 +360,32 @@ namespace SurgicalFoundations.EditorTools
             b.Collider(null, new Vector3(0, 0.95f, -0.1f), new Vector3(1.7f, 1.9f, 0.6f));
             b.Info("EQ-05", "Scrub sink + sensor tap", "Equipment", AssetRelease.MVP, 5000, "Water VFX socket at spout (WaterSocket_*); soap dispenser.");
             b.MakeStatic(false);
+            KeepFxOutOfBatching(b);
             b.Save(Folder("Equipment"));
+        }
+
+        /// <summary>
+        /// Static batching bakes meshes into world space, which breaks shaders that animate in object space (the water
+        /// stream's wobble scales around the world origin, the lather drifts). Those effects stay out of the batch.
+        /// </summary>
+        static void KeepFxOutOfBatching(PB b)
+        {
+            foreach (var t in b.Root.GetComponentsInChildren<Transform>(true))
+                if (t.name == "WaterStream" || t.name == "SoapLather")
+                    GameObjectUtility.SetStaticEditorFlags(t.gameObject,
+                        GameObjectUtility.GetStaticEditorFlags(t.gameObject) & ~StaticEditorFlags.BatchingStatic);
+        }
+
+        /// <summary>Tap outlet: water sound + visible stream of <paramref name="fall"/> metres, off until the sensor fires.</summary>
+        static void WaterSocket(PB b, string n, Vector3 spout, float fall)
+        {
+            var w = b.Pivot($"WaterSocket_{n}", spout, new Vector3(90, 0, 0));
+            var em = w.gameObject.AddComponent<AmbientEmitter>();
+            em.Sound = SoundId.AMB_TapWater;
+            // Visible stream (SF/FX/Water Stream): socket +Z points down, so offset along +Z and undo the socket tilt.
+            var stream = b.Cyl("WaterStream", new Vector3(0, 0, fall / 2f), 0.012f, fall, "FX_WaterStream", new Vector3(-90, 0, 0), w);
+            stream.GetComponent<MeshRenderer>().shadowCastingMode = ShadowCastingMode.Off;
+            w.gameObject.SetActive(false); // switched on by the sensor
         }
 
         /// <summary>Draped instrument back table with sterile-zone and non-sterile-edge triggers (FR-07).</summary>

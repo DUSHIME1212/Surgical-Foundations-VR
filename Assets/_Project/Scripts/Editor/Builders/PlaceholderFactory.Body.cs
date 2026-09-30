@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Linq;
 using SurgicalFoundations.Audio;
 using SurgicalFoundations.Placeholders;
 using UnityEditor;
@@ -50,24 +52,42 @@ namespace SurgicalFoundations.EditorTools
 
         // ───────────────────────────── PPE ─────────────────────────────
 
-        static void Hand(PB b, string name, float x, float side, string mat)
-        {
-            var h = b.Group(name, new Vector3(x, 0, 0));
-            b.Box("Palm", Vector3.zero, new Vector3(0.085f, 0.028f, 0.095f), mat, default, h);
-            for (int i = 0; i < 4; i++)
-                b.Cap($"Finger_{i}", new Vector3(-0.03f + i * 0.02f, 0, 0.085f), 0.018f, 0.08f - Mathf.Abs(i - 1.5f) * 0.01f, mat, PB.AlongZ, h);
-            b.Cap("Thumb", new Vector3(side * 0.052f, -0.004f, 0.015f), 0.02f, 0.065f, mat, new Vector3(90, side * 45f, 0), h);
-            b.Cyl("Wrist", new Vector3(0, 0, -0.075f), 0.058f, 0.06f, mat, PB.AlongZ, h);
-        }
-
         static void SurgeonHands()
         {
             var b = new PB("PPE_SurgeonHands");
-            Hand(b, "Hand_L", -0.12f, 1f, "Glove_Latex");
-            Hand(b, "Hand_R", 0.12f, -1f, "Glove_Latex");
+            var leftModel = AssetDatabase.LoadAssetAtPath<GameObject>(SFPaths.XRHandsLeftModel);
+            var rightModel = AssetDatabase.LoadAssetAtPath<GameObject>(SFPaths.XRHandsRightModel);
+            if (leftModel == null || rightModel == null)
+            {
+                Object.DestroyImmediate(b.Root);
+                Debug.LogError("[Surgical Foundations] XR Hands 'HandVisualizer' sample not found. Import it from Package Manager ▸ XR Hands ▸ Samples, then rebuild.");
+                return;
+            }
+            // Same meshes and skeleton as the learner's tracked hands, so demos and replays match what they see.
+            XRHand(b, leftModel, "Hand_L", -0.12f);
+            XRHand(b, rightModel, "Hand_R", 0.12f);
             b.Info("PPE-01", "Surgeon hands (L + R)", "PPE", AssetRelease.MVP, 10000,
-                "Rigged for hand tracking (XR Hands skeleton); bare, gloved and contaminated material states (M_Skin, M_Glove_Latex, M_Glove_Contaminated).");
+                "XR Hands sample meshes (XR Hands skeleton). " +
+                "Bare, gloved and contaminated states: M_Skin, M_Glove_Latex, M_Glove_Contaminated (tracked hands switch via HandAppearance).")
+                .isPlaceholder = false;
             b.Save(Folder("PPE"));
+        }
+
+        static void XRHand(PB b, GameObject model, string name, float x)
+        {
+            var inst = (GameObject)PrefabUtility.InstantiatePrefab(model);
+            inst.name = name;
+            inst.transform.SetParent(b.Visual, false);
+            inst.transform.localPosition = new Vector3(x, 0, 0);
+            foreach (var c in inst.GetComponentsInChildren<Collider>(true)) Object.DestroyImmediate(c);
+            foreach (var a in inst.GetComponentsInChildren<Animator>(true)) a.enabled = false;
+            var glove = MaterialLibrary.Get("Glove_Latex");
+            foreach (var r in inst.GetComponentsInChildren<Renderer>(true))
+            {
+                var mats = r.sharedMaterials;
+                for (int i = 0; i < mats.Length; i++) mats[i] = glove;
+                r.sharedMaterials = mats;
+            }
         }
 
         static void Gown()
@@ -111,6 +131,15 @@ namespace SurgicalFoundations.EditorTools
         {
             var b = new PB("PPE_DrapeSet");
             const float L = 2.6f, Wd = 1.7f, th = 0.004f, holeX = 0.3f, holeZ = 0.25f;
+            if (ConformingDrape(b, L, Wd, holeX, holeZ))
+            {
+                b.Box("Drop_North", new Vector3(0, -0.28f, Wd / 2), new Vector3(L, 0.56f, th), "Drape_Teal");
+                b.Box("Drop_South", new Vector3(0, -0.28f, -Wd / 2), new Vector3(L, 0.56f, th), "Drape_Teal");
+                b.Info("PPE-04", "Patient drape set", "PPE", AssetRelease.MVP, 6000,
+                    "Fenestrated drape shaped over the imported patient (height field, static); window + adhesive frame at the umbilicus.").isPlaceholder = false;
+                b.Save(Folder("PPE"));
+                return;
+            }
             b.Box("Drape_Head", new Vector3(-(L / 2 + holeX / 2) / 2 - 0.0f, 0, 0), new Vector3(L / 2 - holeX / 2, th, Wd), "Drape_Teal");
             b.Box("Drape_Foot", new Vector3((L / 2 + holeX / 2) / 2, 0, 0), new Vector3(L / 2 - holeX / 2, th, Wd), "Drape_Teal");
             b.Box("Drape_Left", new Vector3(0, 0, (Wd / 2 + holeZ / 2) / 2), new Vector3(holeX, th, Wd / 2 - holeZ / 2), "Drape_Teal");
@@ -122,12 +151,196 @@ namespace SurgicalFoundations.EditorTools
             b.Save(Folder("PPE"));
         }
 
+        // SceneBuilder places the drape at (−0.02, 1.167, 0) and the patient at (0, 0.92, 0): drape origin in patient space.
+        static readonly Vector3 DrapeInPatient = new Vector3(-0.02f, 0.247f, 0f);
+
+        /// <summary>
+        /// Drape sheet as a height field resting on the imported patient: flat at the window (umbilicus) level, lifted
+        /// over the chest and feet with a little clearance, window cut out and ringed by a white adhesive frame.
+        /// Returns false (caller builds the flat primitive drape) if the patient model is missing.
+        /// </summary>
+        static bool ConformingDrape(PB b, float L, float Wd, float holeX, float holeZ)
+        {
+            const float cell = 0.02f, clearance = 0.008f, frame = 0.03f;
+            var body = PatientHeightField(cell);
+            if (body == null) return false;
+
+            // Uniform field in drape space: body height (relative to the window level), dilated so the sheet tents
+            // just past the body's outline, then blurred with a smaller radius so it still clears every peak.
+            int nx = Mathf.CeilToInt(L / cell) + 1, nz = Mathf.CeilToInt(Wd / cell) + 1;
+            var raw = new float[nx, nz];
+            for (int i = 0; i < nx; i++)
+            for (int j = 0; j < nz; j++)
+            {
+                float x = -L / 2 + i * cell + DrapeInPatient.x, z = -Wd / 2 + j * cell + DrapeInPatient.z;
+                raw[i, j] = Mathf.Max(0f, body(x, z) - DrapeInPatient.y + clearance);
+            }
+            var h = Blur(Dilate(raw, 3), 2);
+
+            float Height(float x, float z)
+            {
+                float fi = Mathf.Clamp((x + L / 2) / cell, 0, nx - 1.001f), fj = Mathf.Clamp((z + Wd / 2) / cell, 0, nz - 1.001f);
+                int i = (int)fi, j = (int)fj;
+                float u = fi - i, v = fj - j;
+                return Mathf.Lerp(Mathf.Lerp(h[i, j], h[i + 1, j], u), Mathf.Lerp(h[i, j + 1], h[i + 1, j + 1], u), v);
+            }
+
+            // Grid lines every 5 cm, plus the window and frame edges so the cut-outs are exact.
+            float hx = holeX / 2, hz = holeZ / 2;
+            var xs = Lines(-L / 2, L / 2, 0.05f, -hx - frame, -hx, hx, hx + frame);
+            var zs = Lines(-Wd / 2, Wd / 2, 0.05f, -hz - frame, -hz, hz, hz + frame);
+            var verts = new List<Vector3>();
+            var uvs = new List<Vector2>();
+            foreach (var z in zs)
+            foreach (var x in xs)
+            {
+                verts.Add(new Vector3(x, Height(x, z), z));
+                uvs.Add(new Vector2(x / L + 0.5f, z / Wd + 0.5f));
+            }
+            var sheet = new List<int>();
+            var rim = new List<int>();
+            for (int j = 0; j < zs.Count - 1; j++)
+            for (int i = 0; i < xs.Count - 1; i++)
+            {
+                float cx = Mathf.Abs((xs[i] + xs[i + 1]) / 2), cz = Mathf.Abs((zs[j] + zs[j + 1]) / 2);
+                if (cx < hx && cz < hz) continue; // the window
+                var list = cx < hx + frame && cz < hz + frame ? rim : sheet;
+                int a = j * xs.Count + i, c = a + xs.Count;
+                list.AddRange(new[] { a, c, a + 1, a + 1, c, c + 1 });
+            }
+
+            var mesh = new Mesh { name = "PPE_DrapeSet" };
+            mesh.SetVertices(verts);
+            mesh.SetUVs(0, uvs);
+            mesh.subMeshCount = 2;
+            mesh.SetTriangles(sheet, 0);
+            mesh.SetTriangles(rim, 1);
+            mesh.RecalculateNormals();
+            mesh.RecalculateTangents();
+            mesh.RecalculateBounds();
+            mesh = StoreMesh(mesh, SFPaths.Root + "/Art/Meshes/PPE_DrapeSet.asset");
+
+            var go = new GameObject("Drape", typeof(MeshFilter), typeof(MeshRenderer));
+            go.transform.SetParent(b.Visual, false);
+            go.GetComponent<MeshFilter>().sharedMesh = mesh;
+            go.GetComponent<MeshRenderer>().sharedMaterials = new[] { MaterialLibrary.Get("Drape_Teal"), MaterialLibrary.Get("Polymer_White") };
+            return true;
+        }
+
+        /// <summary>Antiseptic-prepped skin (M_Skin_Prepped) as a thin patch following the imported patient's belly under the drape window.</summary>
+        static void PrepPatch(PB b, Vector2 centre, Vector2 size)
+        {
+            const float cell = 0.02f, lift = 0.003f, step = 0.02f;
+            var body = PatientHeightField(cell);
+            if (body == null) return;
+            float Surface(float x, float z)
+            {
+                float m = 0f;
+                for (int i = -1; i <= 1; i++)
+                for (int j = -1; j <= 1; j++)
+                    m = Mathf.Max(m, body(x + i * cell, z + j * cell));
+                return m + lift;
+            }
+            int nx = Mathf.RoundToInt(size.x / step) + 1, nz = Mathf.RoundToInt(size.y / step) + 1;
+            var verts = new List<Vector3>();
+            var uvs = new List<Vector2>();
+            for (int j = 0; j < nz; j++)
+            for (int i = 0; i < nx; i++)
+            {
+                float x = centre.x - size.x / 2 + i * step, z = centre.y - size.y / 2 + j * step;
+                verts.Add(new Vector3(x, Surface(x, z), z));
+                uvs.Add(new Vector2((float)i / (nx - 1), (float)j / (nz - 1)));
+            }
+            var tris = new List<int>();
+            for (int j = 0; j < nz - 1; j++)
+            for (int i = 0; i < nx - 1; i++)
+            {
+                int a = j * nx + i, c = a + nx;
+                tris.AddRange(new[] { a, c, a + 1, a + 1, c, c + 1 });
+            }
+            var mesh = new Mesh { name = "ANA_PrepArea" };
+            mesh.SetVertices(verts);
+            mesh.SetUVs(0, uvs);
+            mesh.SetTriangles(tris, 0);
+            mesh.RecalculateNormals();
+            mesh.RecalculateTangents();
+            mesh.RecalculateBounds();
+            mesh = StoreMesh(mesh, SFPaths.Root + "/Art/Meshes/ANA_PrepArea.asset");
+            var go = new GameObject("PrepArea", typeof(MeshFilter), typeof(MeshRenderer));
+            go.transform.SetParent(b.Visual, false);
+            go.GetComponent<MeshFilter>().sharedMesh = mesh;
+            var r = go.GetComponent<MeshRenderer>();
+            r.sharedMaterial = MaterialLibrary.Get("Skin_Prepped");
+            r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        }
+
+        static List<float> Lines(float from, float to, float step, params float[] extra)
+        {
+            var l = new List<float>();
+            for (float v = from; v < to - 1e-4f; v += step) l.Add(v);
+            l.Add(to);
+            l.AddRange(extra);
+            l.Sort();
+            return l.Where((v, i) => i == 0 || v - l[i - 1] > 0.005f).ToList();
+        }
+
+        static float[,] Dilate(float[,] f, int r)
+        {
+            int nx = f.GetLength(0), nz = f.GetLength(1);
+            var o = new float[nx, nz];
+            for (int i = 0; i < nx; i++)
+            for (int j = 0; j < nz; j++)
+            {
+                float m = 0f;
+                for (int di = -r; di <= r; di++)
+                for (int dj = -r; dj <= r; dj++)
+                {
+                    int a = i + di, c = j + dj;
+                    if (a >= 0 && a < nx && c >= 0 && c < nz && di * di + dj * dj <= r * r) m = Mathf.Max(m, f[a, c]);
+                }
+                o[i, j] = m;
+            }
+            return o;
+        }
+
+        static float[,] Blur(float[,] f, int r)
+        {
+            int nx = f.GetLength(0), nz = f.GetLength(1);
+            var o = new float[nx, nz];
+            for (int i = 0; i < nx; i++)
+            for (int j = 0; j < nz; j++)
+            {
+                float s = 0f;
+                int n = 0;
+                for (int di = -r; di <= r; di++)
+                for (int dj = -r; dj <= r; dj++)
+                {
+                    int a = Mathf.Clamp(i + di, 0, nx - 1), c = Mathf.Clamp(j + dj, 0, nz - 1);
+                    s += f[a, c];
+                    n++;
+                }
+                o[i, j] = s / n;
+            }
+            return o;
+        }
+
         // ───────────────────────────── Anatomy ─────────────────────────────
 
         /// <summary>Supine patient. Origin = table-top surface centre; head at −X, umbilicus pivot marks the camera port.</summary>
         static void PatientBody()
         {
             var b = new PB("ANA_PatientBody");
+            float belly = ImportedPatient(b);
+            if (belly > 0f)
+            {
+                PrepPatch(b, new Vector2(-0.04f, 0f), new Vector2(0.36f, 0.3f));
+                b.Pivot("Umbilicus", new Vector3(-0.02f, belly, 0));
+                b.Collider(null, new Vector3(0.235f, 0.13f, 0), new Vector3(1.87f, 0.26f, 0.64f));
+                b.Info("ANA-01", "Patient body", "Anatomy", AssetRelease.MVP, 31000,
+                    $"Imported (Imports/patient), supine, head at −X; navel at x = −0.02, {belly * 100f:0.0} cm above the table top.").isPlaceholder = false;
+                b.Save(Folder("Anatomy"));
+                return;
+            }
             b.CapE("Torso", new Vector3(-0.35f, 0.12f, 0), new Vector3(0.24f, 0.72f, 0.36f), "Skin", new Vector3(0, 0, 90));
             b.CapE("Pelvis", new Vector3(0.1f, 0.1f, 0), new Vector3(0.2f, 0.38f, 0.34f), "Skin", new Vector3(0, 0, 90));
             b.Cyl("Neck", new Vector3(-0.7f, 0.08f, 0), 0.1f, 0.1f, "Skin", PB.AlongX);

@@ -2,244 +2,152 @@
 
 # 🩺 Surgical Foundations VR
 
-**A laparoscopic skills trainer for Meta Quest 3 — one learner, one theatre, about 15 minutes.**
+### Practise the first steps of keyhole surgery before you ever touch a patient.
 
-Scrub in, gown and glove, place your ports, operate through a laparoscope and close — with real-time protocol feedback, on-device scoring and a full replay.
+A virtual-reality operating theatre for **Meta Quest 3** where medical students and junior surgical trainees
+scrub in, prepare a sterile field, place their ports and operate through a laparoscope,
+with a guide at their shoulder and honest feedback on every step.
 
-![Unity](https://img.shields.io/badge/Unity-6000.6.3f1-000000?logo=unity&logoColor=white)
-![URP](https://img.shields.io/badge/Render%20Pipeline-URP%2017-5CE0C8)
-![XRI](https://img.shields.io/badge/XR%20Interaction%20Toolkit-3.6-5CE0C8)
-![Platform](https://img.shields.io/badge/Target-Meta%20Quest%203%20%C2%B7%2072%20fps-0B1517)
-![Status](https://img.shields.io/badge/Status-Grey--box%20MVP-F5B54B)
+![Platform](https://img.shields.io/badge/Platform-Meta%20Quest%203-0B1517)
+![Session](https://img.shields.io/badge/Session-about%2015%20minutes-5CE0C8)
+![Status](https://img.shields.io/badge/Status-Playable%20prototype-F5B54B)
 
-![Access stage — trocar entry with live laparoscope feed](Docs/Images/access-stage.png)
+![A learner's view during port placement: trocar guidance, the laparoscope feed on the tower monitor, and the draped patient](Docs/Images/access-stage.png)
+
+<sub>Placing a port: live guidance on angle, depth and force, the laparoscope's view on the tower monitor, and the patient draped for surgery.</sub>
 
 </div>
 
 ---
 
-## Contents
+## Why this matters
 
-- [What it is](#what-it-is)
-- [The scenario](#the-scenario)
-- [Screenshots](#screenshots)
-- [Getting started](#getting-started)
-- [Project structure](#project-structure)
-- [How it's built](#how-its-built)
-- [Content pipeline](#content-pipeline)
-- [Performance budget](#performance-budget)
-- [Roadmap](#roadmap)
-- [Documentation](#documentation)
-- [Credits](#credits)
+**Keyhole (laparoscopic) surgery is one of the hardest skills a young surgeon learns.** The surgeon looks at a flat screen instead of into the body, works through long instruments that pivot at the skin, so the tip moves the *opposite* way to the hand, and feels far less of the tissue than with open surgery. Those skills take many hours of deliberate practice to build.
+
+**Much of that practice still happens in the real operating theatre**, where time is scarce, the pressure is high and every mistake matters to a patient. Some of the most important lessons aren't about the instruments at all: a glove brushing a non-sterile edge, a forgotten swab, a port placed at the wrong angle. They are easy to make and costly to learn the hard way.
+
+**Surgical Foundations VR gives learners somewhere safe to get those basics right first.** In the headset they can:
+
+- 🔁 **Repeat** a full procedure as often as they need, at any hour, without booking a theatre, a mentor or a simulator lab.
+- 🧼 **Build habits** of sterile technique and counting that protect patients, with a mistake shown the moment it happens.
+- 🎯 **Train the awkward hand-eye skills** of keyhole surgery: working through ports while watching a screen.
+- 📈 **See their progress** in clear, consistent feedback, rather than depending on who happened to be supervising.
+
+It doesn't replace supervised training in the real theatre. It helps learners arrive there better prepared, more confident and safer.
 
 ---
 
-## What it is
-
-Surgical Foundations VR teaches the core steps of a laparoscopic procedure in a fully simulated operating theatre. Learners train in **Guided** mode (highlights, voice prompts, live protocol flags) or sit an **Assessment** (no cues, result sent to the LMS). Every action is logged as a protocol event — *on protocol*, *delayed* or *deviation* — and scored on the headset, so it works offline and syncs later.
+## Who it's for
 
 | | |
 |---|---|
-| 🎯 **Audience** | Medical students and junior trainees |
-| 🥽 **Hardware** | Meta Quest 3 (standalone), controllers or hand tracking |
-| 🧭 **Modes** | Guided · Assessment · Seated or standing |
-| 📊 **Output** | Session score, per-stage scores, top-3 issues, replay, xAPI / SCORM |
+| 🎓 **Medical students** | A first, low-stress encounter with the theatre: how to scrub, gown, keep things sterile and what a laparoscopic operation looks like from the surgeon's position |
+| 🩺 **Junior surgical trainees** | Repeatable practice of port placement, instrument handling through the scope, and the counting and closing routine |
+| 👩‍🏫 **Educators** | A standard scenario every learner goes through the same way, with the same criteria, making it fairer to compare and easier to see where a group needs help |
+| 🏥 **Training programmes** | Practice on a standalone headset, designed to work without a network and to report results to the learning platform the institution already uses |
 
-> **Current state:** a playable grey-box of the whole flow. All 41 asset-list models exist as real-scale placeholders (two already replaced by real rigged characters), all 16 UI screens are built from the design, lighting is baked, and the scenario runs end to end. Detection and scoring logic come next — see the [roadmap](#roadmap).
+---
 
-## The scenario
+## The experience
 
-```
-Lobby ──► Skills Lab (calibrate + tutorial)
-  │
-  └──► Operating Theatre
-         ├─ 1 · Prep      scrub → sterility check → instrument count → drape
-         ├─ 2 · Access    mark port sites → trocar entry  (⤷ vessel-injury branch)
-         ├─ 3 · Operate   peg transfer → dissection → clip & cut, via the laparoscope
-         ├─ 4 · Close     instrument & swab count → ports out under vision
-         └─ Summary       score · stage bars · top 3 to work on · retry
-```
+One learner, one operating theatre, about fifteen minutes from sign-in to results.
 
-Stages load **additively** on top of the theatre, so the room, lighting and patient never reload and scene changes are a fade, never a camera move (comfort, NFR-05).
-
-## Screenshots
-
-| Operating theatre (baked lighting) | Lobby (sign-in) |
-|---|---|
-| ![Theatre](Docs/Images/theatre-overview.png) | ![Lobby](Docs/Images/lobby.png) |
-| **Prep — ghost-hand scrub demo** | **Imported characters & equipment** |
-| ![Prep](Docs/Images/prep-scrub.png) | ![Imported models](Docs/Images/imported-models.png) |
-
-<details>
-<summary><b>All 16 UI screens</b> (rendered from the prefabs — click to expand)</summary>
-
-| | | |
-|---|---|---|
-| ![](Docs/UI%20Previews/UI_01_SignIn.png) | ![](Docs/UI%20Previews/UI_02_Lobby.png) | ![](Docs/UI%20Previews/UI_03_Calibrate.png) |
-| ![](Docs/UI%20Previews/UI_05_Scrub.png) | ![](Docs/UI%20Previews/UI_06_Sterility.png) | ![](Docs/UI%20Previews/UI_09_TrocarEntry.png) |
-| ![](Docs/UI%20Previews/UI_14_Count.png) | ![](Docs/UI%20Previews/UI_13_Pause.png) | ![](Docs/UI%20Previews/UI_16_Summary.png) |
-
-Regenerate any time with **Surgical Foundations ▸ Tools ▸ Render UI Previews** → `Docs/UI Previews/`.
-</details>
-
-<details>
-<summary><b>Shader library</b> — 20 custom URP shaders</summary>
-
-![Shader gallery](Docs/ShaderGallery.png)
-
-Wet tissue · brushed steel · surgical drape · glove contamination · skin · blood pool · guided highlight · dashed ring · target pulse · ghost hand · water stream · soap lather · dissolve · laminar flow · laparoscope screen · vitals monitor · grid floor · cove glow · view vignette · hologram. Details in [Docs/Shaders.md](Docs/Shaders.md).
-</details>
-
-## Getting started
-
-### Requirements
-
-- **Unity 6000.6.3f1** (Unity 6.6) with **Android Build Support** (OpenJDK, SDK & NDK)
-- A **Meta Quest 3** with developer mode enabled — or just the editor with the XR Device Simulator
-- No Git LFS needed — no single asset is larger than 20 MB
-
-### Open and play
-
-1. Clone the repository and open the folder in Unity Hub.
-2. Open **`Assets/_Project/Scenes/Core/00_Bootstrap.unity`** and press **Play**.
-
-> 💡 You can press Play in **any** project scene. `AppBootstrap` pulls in `00_Bootstrap` (XR rig, audio, services) automatically, and a stage scene also loads the theatre around it — handy for iterating on one stage.
-
-### Controls
-
-| Action | Quest controllers | Desk (editor) |
-|---|---|---|
-| Point & select UI | Ray + trigger | Mouse via XR Device Simulator |
-| Grab instrument | Grip | — |
-| Close jaws / fire clip | Trigger | — |
-| Pause menu | Left **Menu** button | **Esc** |
-| Move | Thumbstick / teleport | Simulator |
-
-### Build to Quest
-
-1. **File ▸ Build Profiles ▸ Android**, then *Switch Platform*.
-2. The scene list is already set (the replay viewer is excluded — it's a separate desktop/WebGL build).
-3. Connect the headset and **Build And Run**.
-
-## Project structure
-
-Everything we own lives in `Assets/_Project/`. Template and sample content stays where Unity put it.
-
-```
-Assets/_Project/
-├── Art/           Materials · Models · Shaders (20) · Textures · VFX
-├── Animation/     Characters · Hands · Instruments
-├── Audio/         Ambience · SFX (UI, Feedback, Instruments, Environment) · Voice
-├── Data/          SoundBank · UITheme · TMP icon sprites
-├── Imports/       Third-party models as downloaded
-├── Lighting/      LightingSettings · post-processing VolumeProfiles
-├── Prefabs/       Environment · Equipment · Instruments · PPE · Anatomy · TrainingProps · Characters · UI
-├── Scenes/        Core · Frontend · Theatre · Tools
-├── Scripts/       Runtime (SurgicalFoundations.Runtime) · Editor (SurgicalFoundations.Editor)
-└── UI/            Sprites · Icons · Fonts
+```mermaid
+flowchart LR
+    A([Sign in]) --> B[Lobby]
+    B --> C[Skills lab<br/>set-up and practice]
+    C --> D[1 · Prep]
+    B --> D
+    D --> E[2 · Access]
+    E --> F[3 · Operate]
+    F --> G[4 · Close]
+    G --> H([Results])
+    H -.->|try again| D
 ```
 
-| Scene | Loads | Contents |
-|---|---|---|
-| `00_Bootstrap` | Always | XR rig, session, scene loader, event log, audio, pause, subtitles |
-| `01_Lobby` | Single | Sign-in, mode / posture / settings |
-| `02_SkillsLab` | Single | Calibration, controller tutorial, peg board |
-| `10_OR_Base` | Single, then host | Theatre, lighting, patient, equipment, HUD, summary |
-| `11`–`14_Stage_*` | Additive | Prep · Access · Operate · Close content and UI |
-| `90_ReplayViewer` | Separate build | Pose playback, learner / laparoscope / free cameras |
-| `91_ShaderGallery` | Tools only | Every custom shader side by side |
-
-Naming and the full folder guide: [Docs/ProjectStructure.md](Docs/ProjectStructure.md).
-
-## How it's built
-
-### Architecture
-
-| System | Where | What it does |
-|---|---|---|
-| `SceneLoader` | Core | Fade → unload/load (single or additive) → place rig at spawn → fade in |
-| `SessionManager` | Core | Settings, session clock, pause (time freezes, world dims) |
-| `ScenarioDirector` | Scenario | Prep → Access → Operate → Close → Summary |
-| `EventLogger` | Scenario | Protocol events with client UUIDs (idempotent sync), toasts, sounds |
-| `StepSequence` | UI | Steps inside a stage, optional teleport per step, voice per step |
-| `AudioManager` | Audio | Pooled 2D/3D sounds, categories, ambience ducking under voice, subtitles |
-| `LaparoscopeFeed` | Lighting | Scope camera → RenderTexture → tower monitor, with power-on fade |
-
-### Generated content
-
-Most content is **generated by editor builders**, so it's consistent and reproducible:
-
-| Menu: **Surgical Foundations ▸** | Produces |
+| Step | What the learner does |
 |---|---|
-| **Build Everything** | Runs all builders below in order |
-| Build ▸ 0 · Rendering Settings | URP quality settings for Quest |
-| Build ▸ 1b · Imported Model Materials | PBR materials from the imported texture sets |
-| Build ▸ 1 · Placeholder Models | 41 asset-list prefabs (+ imported props) |
-| Build ▸ 2 · Sound Bank | Clip ↔ `SoundId` mapping |
-| Build ▸ 3 · UI Screens | 16 screens, HUD, subtitles, monitor overlays |
-| Build ▸ 4 · Scenes | All scenes + build settings |
-| Build ▸ 5 · Bake Lighting | Bakes Lobby, Skills Lab, Theatre, Replay |
-| Tools ▸ Render UI Previews / Placeholder Report | Design review & art tracking |
+| **Sign in & lobby** | Signs in with a code from their phone, then chooses how to train: **Guided** (hints, voice prompts, live feedback) or **Assessment** (no help, just a result), standing or seated, controllers or bare hands. |
+| **Skills lab** | Sets their height and the table height so the theatre fits their body, then practises the controls on a peg board. |
+| **1 · Prep** | Scrubs at the sink while a demo shows the correct hand movements, gowns and gloves, checks the sterile back table, counts the instruments and drapes the patient. |
+| **2 · Access** | Marks where the ports go on the abdomen and inserts them one by one, watching the entry angle, depth and force. |
+| **3 · Operate** | Works through the laparoscope with a real camera view on the monitor: moving objects, dissecting and clipping. The guide calls out when an instrument drifts out of view. |
+| **4 · Close** | Counts every instrument and swab (one is hidden on purpose) and removes the ports safely, camera port last. |
+| **Results** | An overall score, a score per stage and the three things to work on next, with the option to repeat a stage or the whole scenario. |
 
-> ⚠️ Rebuilding scenes clears their baked lighting — run **Bake Lighting** afterwards.
+A pause menu is always one button away, subtitles accompany every voice prompt, and every move between areas is a gentle fade, never a camera movement that could cause motion sickness.
 
-### Lighting
+### Feedback that teaches
 
-Rooms are fully **baked** (GPU lightmapper, area lights over the ceiling panels, AO, 3 bounces). The two surgical light heads are **mixed** spots, giving real-time highlights on steel and one soft shadow over the field. Dense light probes around the table light the moving instruments and hands; box-projected reflection probes give believable metal. Tone mapping is on for PC and off on Quest by default.
+Everything the learner does is checked against the surgical protocol and falls into one of three kinds:
 
-### UI
+- 🟢 **On protocol:** done correctly.
+- 🟠 **Delayed:** right action, too late (for example, correcting a drifting instrument only after a prompt).
+- 🔴 **Deviation:** something that would put a patient at risk (for example, a gloved hand touching a non-sterile surface). The edges of the view flash, a sound plays and the learner is told what went wrong and why.
 
-Built from the headset UI prototype: dark teal glass panels, mint accent `#5CE0C8`, coral `#FF8A79` for deviations, amber `#F5B54B` for warnings. World-space uGUI canvases at 1 px = 1 mm, with hover lift, sound and a controller haptic tick on every button.
+In **Guided** mode this feedback appears in the moment, like a mentor at your shoulder. In **Assessment** mode it stays silent until the results, so the score reflects what the learner can do on their own.
 
-### Audio
+---
 
-63 original placeholder sounds — synthesised UI, feedback, instrument and room sounds, seamless ambience loops, and text-to-speech voice prompts with subtitles. Replace any clip in place, keeping the file name.
+## A look inside
 
-## Content pipeline
-
-**Swapping a placeholder for a real model:** every prefab is `Root` (colliders, grabbing, sounds, named pivots) → `Visual` (meshes only). Replace what's under `Visual`, keep the named transforms (`Pivot_Tip`, `Pivot_Port`, `Jaw_Upper`/`Jaw_Lower`, `CameraSocket`, …) and untick **Is Placeholder**. Imported rigged characters are fitted, turned to face +Z and posed out of the T-pose automatically.
-
-## Performance budget
-
-| Target | Budget |
+| The operating theatre | The skills lab and ward |
 |---|---|
-| Frame rate | 72 fps on Quest 3 (NFR-01) |
-| Scene load | < 15 s (NFR-03) |
-| Visible triangles | ≈ 400k |
-| Lightmaps | Non-directional, ≤ 1024² per room |
-| Heavy effects | Laminar airflow and post-processing off on Quest by default |
+| ![The operating theatre with the table, surgical lights, laparoscopic tower, anaesthesia area and equipment](Docs/Images/theatre-overview.png) | ![The skills lab with the adjustable training table and a ward bay with a hospital bed, IV stand and oxygen](Docs/Images/skills-lab.png) |
+| **Scrubbing in, with the correct technique demonstrated** | **The calm lobby where every session starts** |
+| ![The scrub sink with running water, demonstration hands and the scrub checklist](Docs/Images/prep-scrub.png) | ![The lobby with the sign-in panel and a waiting area](Docs/Images/lobby.png) |
 
-## Roadmap
+![The characters, patient and hospital equipment that populate the simulation](Docs/Images/imported-models.png)
 
-- [x] Project structure, scene architecture, additive stage loading
-- [x] 41 asset-list models as real-scale placeholders
-- [x] All 16 UI screens, HUD, pause, subtitles, toasts
-- [x] Baked lighting, audio library, 20 custom shaders
-- [x] Real nurse and anaesthetist models
-- [ ] Step detection and on-device scoring (FR-17)
-- [ ] Pose recorder (≥ 30 Hz) and offline sync queue (FR-25)
-- [ ] ASP.NET Core backend, xAPI / SCORM
-- [ ] Soft-body tissue (Obi Softbody), final art and recorded voice-over
-- [ ] R2: vessel-injury branch, tissue tearing, camera assistant
+<sub>The people and equipment of the simulation: scrub nurse, anaesthetist, the patient on the operating table, scrub sink, hospital bed, IV stand, oxygen, heart-lung machine, anaesthesia cart, monitors and furniture.</sub>
 
-Full sprint plan: [Docs/ExecutionPlan.md](Docs/ExecutionPlan.md).
+---
 
-## Documentation
+## What makes it different
 
-| Document | |
-|---|---|
-| [ExecutionPlan.md](Docs/ExecutionPlan.md) | Sprint plan, milestones, risks, progress |
-| [ProjectStructure.md](Docs/ProjectStructure.md) | Folders, naming, builders, lighting & audio model |
-| [Shaders.md](Docs/Shaders.md) | The 20 custom shaders and how to drive them |
-| [ThirdPartyAssets.md](Docs/ThirdPartyAssets.md) | Imported models, usage and licence tracking |
+- **A complete procedure, not a single drill.** Learners go from the scrub sink to closing, in the order it happens in real life, so habits connect into a routine.
+- **A real laparoscope view.** A camera inside the patient's abdomen feeds the tower monitor, so learners practise watching the screen instead of their hands.
+- **Designed around patient safety.** Sterility, counting and safe port placement are treated as seriously as the surgical skill itself.
+- **Fair and consistent.** Every learner meets the same scenario and the same criteria, including a swab deliberately hidden before the final count.
+- **Comfortable and accessible.** Standing or seated, adjustable to each learner's height, subtitles for every prompt, and no camera movement that causes motion sickness.
+- **Built for real training programmes.** It targets a standalone headset that needs no PC, is designed to keep working offline, and is designed to report results in the standard formats (xAPI and SCORM) that learning platforms understand.
+
+---
+
+## Where the project is today
+
+**A playable prototype of the whole experience.** A learner can walk through every step from sign-in to results in a lit, furnished operating theatre with a realistic patient, scrub sink, staff and equipment. All sixteen screens of the headset interface are built, and voice prompts and sound are in place.
+
+**Coming next:**
+
+- Recognising the learner's actions automatically (scrub movements, sterile contacts, port angle and depth, counts). Today learners move on with a *Continue* button.
+- Scoring on the headset, with the results screen showing real scores.
+- Recording sessions so learners and educators can replay them from any angle.
+- Sending results to the institution's learning platform, even after training offline.
+- Later: realistic tissue that responds to instruments, bleeding complications, a virtual camera assistant, instructor dashboards for whole cohorts, and haptic feedback.
+
+---
+
+## Try it
+
+**On a headset:** open the project in Unity 6 (6000.6.3f1) with Android support, connect a Meta Quest 3 and choose *Build And Run*.
+
+**On a PC without a headset:** open the project in Unity and press **Play**. A built-in simulator lets you look around and use the virtual hands and controllers with the mouse and keyboard.
+
+Setup details, controls and everything about how the project is built are in the **[Technical guide](Docs/TechnicalGuide.md)**.
+
+---
 
 ## Credits
 
-- **Design & product:** Surgical Foundations team (@DUSHIME)
-- **Built with:** Unity 6, Universal Render Pipeline, XR Interaction Toolkit, XR Hands, OpenXR
-- **Third-party models:** see [Docs/ThirdPartyAssets.md](Docs/ThirdPartyAssets.md) — *sources and licences to be confirmed before release*
-- **Sounds and placeholder art:** original, generated for this project
+Created by the **Surgical Foundations team** (@DUSHIME), who designed the learning scenario, the headset interface and the production plan. Built with Unity, and with third-party 3D models listed in [Docs/ThirdPartyAssets.md](Docs/ThirdPartyAssets.md). Their sources and licences must be confirmed before any public release. Sounds, shaders and interface graphics were made for this project.
+
+**Licence:** not yet chosen. All rights reserved by the project owners until a licence file is added.
 
 <div align="center">
-<sub>Built for training, not for clinical use.</sub>
+
+---
+
+<sub>Surgical Foundations VR is an educational tool. It is not a medical device and is not intended for clinical use or clinical decision-making.</sub>
+
 </div>

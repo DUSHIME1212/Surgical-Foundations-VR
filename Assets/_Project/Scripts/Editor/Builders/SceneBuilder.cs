@@ -247,6 +247,9 @@ namespace SurgicalFoundations.EditorTools
             return seq;
         }
 
+        static void Hands(GameObject step, HandLook left, HandLook right) =>
+            step.AddComponent<HandLookCue>().Configure(left, right);
+
         static GameObject StepGroup(string name, params GameObject[] children)
         {
             var g = new GameObject(name);
@@ -356,6 +359,10 @@ namespace SurgicalFoundations.EditorTools
             cam.backgroundColor = new Color(0.02f, 0.04f, 0.05f);
             cam.GetUniversalAdditionalCameraData().renderPostProcessing = true;
             cam.gameObject.AddComponent<PlatformPostProcessing>();
+            var hands = xr.AddComponent<HandAppearance>();
+            Ser.Set(hands, "bare", MaterialLibrary.Get("Skin"));
+            Ser.Set(hands, "gloved", MaterialLibrary.Get("Glove_Latex"));
+            Ser.Set(hands, "contaminated", MaterialLibrary.Get("Glove_Contaminated"));
             var gaze = xr.transform.Find("Camera Offset/Gaze Interactor");
             if (gaze != null)
             {
@@ -443,9 +450,19 @@ namespace SurgicalFoundations.EditorTools
             LightingRig.LobbyRig(lights);
             Lighting("Lobby", 10, new Color(0.03f, 0.06f, 0.065f), LightingRig.Profile.Lobby, lights);
 
+            // Waiting area behind the learner's start position.
+            TryInst("Environment/FURN_Sofa", props, new Vector3(0, 0, -4.3f), 0f);
+            TryInst("Equipment/EQ_SideTable", props, new Vector3(0, 0, -3.1f), 0f);
+            foreach (var x in new[] { -1.9f, 1.9f })
+            {
+                var pos = new Vector3(x, 0, -3.7f);
+                TryInst("Environment/FURN_VisitorChair", props, pos, Facing(Vector3.zero, pos));
+            }
+
             var signIn = UI("UI_01_SignIn", ui, new Vector3(0, 1.5f, 1.45f), 0);
             var lobby = UI("UI_02_Lobby", ui, new Vector3(0, 1.4f, 1.55f), 0);
             Sequence(flow, new[] { signIn, lobby }, new[] { SoundId.None, SoundId.VO_Lobby_Welcome }, null, false);
+            Hands(signIn, HandLook.Bare, HandLook.Bare);
 
             Ambient(env, SoundId.AMB_Lobby_Pad, false, Vector3.up * 2f);
             Spawn(flow, Vector3.zero, 0);
@@ -470,10 +487,23 @@ namespace SurgicalFoundations.EditorTools
             Inst("Equipment/EQ_BackTable", props, new Vector3(-2.3f, 0, 1.4f), 90f);
             TryInst("TrainingProps/PROP_OpenSurgerySet", props, new Vector3(-2.3f, 0.926f, 1.4f), 90f);
 
+            // Ward bay along the east wall (hospital room imports; prefab fronts face +Z).
+            var ward = Group("WardBay", props);
+            TryInst("Equipment/EQ_HospitalBed", ward, new Vector3(1.75f, 0, 1.2f), -90f);
+            TryInst("Equipment/EQ_BedsideCabinet", ward, new Vector3(2.7f, 0, 2.35f), -90f);
+            TryInst("Equipment/EQ_IVStand", ward, new Vector3(2.6f, 0, 0.1f), -90f);
+            TryInst("Equipment/EQ_OxygenCylinder", ward, new Vector3(2.75f, 0, -0.5f), -90f);
+            TryInst("Equipment/EQ_OverbedTable", ward, new Vector3(0.95f, 0, 2.3f), 180f);
+            TryInst("Equipment/EQ_SupplyCabinet", ward, new Vector3(1.1f, 0, -2.7f), 0f);
+            TryInst("Equipment/EQ_StorageCabinet", ward, new Vector3(2.35f, 0, -2.6f), 0f);
+            TryInst("Equipment/EQ_MedicalCart", ward, new Vector3(-1.2f, 0, 2.6f), 180f);
+            TryInst("Environment/FURN_VisitorChair", ward, new Vector3(-2.4f, 0, -2.4f), 45f);
+
             var viewer = new Vector3(0, 1.6f, -0.2f);
             var cal = FacingUI("UI_03_Calibrate", ui, new Vector3(-0.85f, 1.45f, 0.95f), viewer);
             var tut = FacingUI("UI_04_Tutorial", ui, new Vector3(-0.85f, 1.45f, 0.95f), viewer);
             Sequence(flow, new[] { cal, tut }, new[] { SoundId.VO_Calibrate_Height, SoundId.VO_Tutorial_SqueezeTrigger }, null, false);
+            Hands(cal, HandLook.Bare, HandLook.Bare);
 
             Ambient(env, SoundId.AMB_SkillsLab_RoomTone, false, Vector3.up * 2f);
             Spawn(flow, new Vector3(0, 0, -0.2f), 0);
@@ -497,6 +527,11 @@ namespace SurgicalFoundations.EditorTools
             Inst("Equipment/EQ_BackTable", eq, new Vector3(2.0f, 0, -1.3f), 90f);
             TryInst("Equipment/EQ_HeartLungMachine", eq, new Vector3(2.75f, 0, 2.55f), 225f);
             TryInst("Equipment/EQ_PatientMonitor", eq, new Vector3(-1.05f, 0, 1.1f), 150f);
+            TryInst("Equipment/EQ_IVStand", eq, new Vector3(-1.0f, 0, -0.6f), 30f);
+            TryInst("Equipment/EQ_OxygenCylinder", eq, new Vector3(-3.1f, 0, -0.45f), 90f);
+            TryInst("Equipment/EQ_SupplyCabinet", eq, new Vector3(-3.2f, 0, -2.35f), 90f);
+            TryInst("Equipment/EQ_StorageCabinet", eq, new Vector3(3.2f, 0, -2.6f), -90f);
+            TryInst("Equipment/EQ_MedicalCart", eq, new Vector3(2.95f, 0, 0.6f), -90f);
 
             var laminar = GameObject.CreatePrimitive(PrimitiveType.Cube);
             laminar.name = "LaminarFlow_FX";
@@ -542,12 +577,15 @@ namespace SurgicalFoundations.EditorTools
             var s = Begin(out _, out var props, out var ui, out _, out var flow);
 
             var sink = Inst("Equipment/EQ_ScrubSink", props, new Vector3(-2.0f, 0, -5.3f), 0f);
-            var tap = sink.transform.Find("WaterSocket_L");
+            // The learner stands centred on the sink: run the middle tap (the primitive fallback sink only has L/R).
+            var tap = sink.transform.Find("WaterSocket_C") ?? sink.transform.Find("WaterSocket_L");
             if (tap != null) tap.gameObject.SetActive(true);
             Inst("PPE/PPE_SurgicalGown", props, new Vector3(-3.15f, 0, -4.1f), 90f);
-            var ghost = Inst("PPE/PPE_SurgeonHands", props, new Vector3(-2.0f, 1.32f, -5.12f), Quaternion.Euler(-35, 180, 0));
+            // Demo hands just under the running tap.
+            var ghostPos = tap != null ? tap.position + new Vector3(0, -0.2f, 0.05f) : new Vector3(-2.0f, 1.32f, -5.12f);
+            var ghost = Inst("PPE/PPE_SurgeonHands", props, ghostPos, Quaternion.Euler(-35, 180, 0));
             ghost.name = "GhostHands_ScrubDemo";
-            foreach (var r in ghost.GetComponentsInChildren<MeshRenderer>())
+            foreach (var r in ghost.GetComponentsInChildren<Renderer>())
             {
                 r.sharedMaterial = MaterialLibrary.Get("FX_GhostHand");
                 r.shadowCastingMode = ShadowCastingMode.Off;
@@ -574,7 +612,7 @@ namespace SurgicalFoundations.EditorTools
                 Kinematic(Inst("Instruments/INST_Swab", props, new Vector3(2.22f, 0.935f, -1.85f + i * 0.11f), 0f));
 
             // Flow: scrub at the sink → sterility deviation at the back table → opening count + drape.
-            var sinkSpot = new Vector3(-2.0f, 0, -4.72f);
+            var sinkSpot = new Vector3(-2.0f, 0, -4.45f); // just in front of the trough lip (sink wall side at z = −5.6)
             var tableSpot = new Vector3(1.15f, 0, -1.3f);
             var sinkEye = sinkSpot + Vector3.up * 1.6f;
             var tableEye = tableSpot + Vector3.up * 1.6f;
@@ -585,6 +623,9 @@ namespace SurgicalFoundations.EditorTools
             Sequence(flow, new[] { scrub, steril, tray2 },
                 new[] { SoundId.VO_Prep_HandsAboveElbows, SoundId.VO_Prep_SterilityBroken, SoundId.None },
                 new Transform[] { null, tableStep, null });
+            Hands(scrub, HandLook.Bare, HandLook.Bare);
+            Hands(steril, HandLook.Contaminated, HandLook.Gloved);
+            Hands(tray2, HandLook.Gloved, HandLook.Gloved);
 
             Spawn(flow, sinkSpot, 180f);
             StageLighting();
@@ -619,6 +660,7 @@ namespace SurgicalFoundations.EditorTools
             blood.AddComponent<ShaderPropertyAnimator>().Configure("_Spread", 0f, 0.85f, 8f, ShaderPropertyAnimator.Mode.Once, 0.5f);
             var branch = StepGroup("Step_BleedBranch", FacingUI("UI_10_BleedBranch", ui, new Vector3(-1.0f, 1.5f, 0.15f), LearnerEye), UI("UI_Monitor_Access", ui, MonitorScreen, 0), blood);
             Sequence(flow, new[] { ports, entry, branch }, new[] { SoundId.VO_Access_MarkRightPort, SoundId.VO_Access_AngleShallow, SoundId.None });
+            Hands(ports, HandLook.Gloved, HandLook.Gloved);
 
             Spawn(flow, new Vector3(0, 0, -0.85f), 0);
             StageLighting();
@@ -649,6 +691,7 @@ namespace SurgicalFoundations.EditorTools
             var operate = StepGroup("Step_Operate", UI("UI_11_Operate", ui, root, 0), UI("UI_Monitor_Operate", ui, MonitorScreen, 0));
             var drift = StepGroup("Step_Drift", UI("UI_12_Drift", ui, root, 0), UI("UI_Monitor_Drift", ui, MonitorScreen, 0));
             Sequence(flow, new[] { operate, drift }, new[] { SoundId.None, SoundId.VO_Operate_DriftLeft });
+            Hands(operate, HandLook.Gloved, HandLook.Gloved);
 
             Spawn(flow, new Vector3(0, 0, -0.85f), 0);
             StageLighting();
@@ -677,6 +720,7 @@ namespace SurgicalFoundations.EditorTools
             var count = FacingUI("UI_14_Count", ui, new Vector3(-1.05f, 1.5f, 0.1f), LearnerEye);
             var removal = StepGroup("Step_PortRemoval", FacingUI("UI_15_PortRemoval", ui, new Vector3(1.3f, 1.55f, 0.85f), LearnerEye), UI("UI_Monitor_Close", ui, MonitorScreen, 0));
             Sequence(flow, new[] { count, removal }, new[] { SoundId.VO_Close_SwabMissing, SoundId.VO_Close_WatchPortSite });
+            Hands(count, HandLook.Gloved, HandLook.Gloved);
 
             Spawn(flow, new Vector3(0, 0, -0.85f), 0);
             StageLighting();

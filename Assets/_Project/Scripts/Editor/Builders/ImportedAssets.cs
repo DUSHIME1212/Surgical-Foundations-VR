@@ -23,6 +23,11 @@ namespace SurgicalFoundations.EditorTools
         public const string Microscope = Root + "/microscope/source/Microscope.fbx";
         public const string Monitor = Root + "/monitor-computer-realistic-computer-monitor/source/Monitor.fbx";
         public const string SurgeryTools = Root + "/surgery-tools-height-rez/source/Surgery Tools.fbx";
+        public const string Patient = Root + "/patient/source/Patient.fbx";
+        /// <summary>glTF binary: needs the glTFast package (com.unity.cloud.gltfast) to import.</summary>
+        public const string ScrubSink = Root + "/scrubbing-sink/source/OT-sink.glb";
+        /// <summary>A whole furnished ward room (Sketchfab) in one FBX; PlaceholderFactory picks the equipment out of it.</summary>
+        public const string HospitalRoom = Root + "/Hospital equi/Untitled.fbx";
 
         const string MatFolder = SFPaths.Materials + "/Imported";
         const string PackedFolder = SFPaths.Textures + "/Imported";
@@ -54,6 +59,13 @@ namespace SurgicalFoundations.EditorTools
             string doc = Root + "/doutordoctor/textures/";
             Dielectric("Imp_Doctor", doc + "Doutor_color.jpeg", doc + "Doutor_low_nm.jpeg", 0.3f);
 
+            string pat = Root + "/patient/textures/Patient_Packed0_";
+            Pbr("Imp_Patient", pat + "BaseColor.png", pat + "Normal.png", pat + "Metallic.png", pat + "Roughness.png", null);
+
+            // The hospital room FBX has no textures: its furniture gets generated surfaces (MaterialLibrary "Hosp_*").
+            HospitalTextures.Build();
+            PrepareHospitalRoom();
+
             AssetDatabase.SaveAssets();
             Debug.Log("[Surgical Foundations] Imported-model materials built in " + MatFolder);
         }
@@ -76,12 +88,34 @@ namespace SurgicalFoundations.EditorTools
                 foreach (var part in new[] { "Body", "Bottom", "Hat", "Mask", "Shoes", "Top" }) d[part + "mat"] = M("Imp_Nurse_" + part);
             }
             else if (model == Doctor) d["_Body_Low"] = M("Imp_Doctor");
+            else if (model == Patient)
+            {
+                d["Patient"] = M("Imp_Patient");
+                d["Serviette"] = MaterialLibrary.Get("Drape_Teal"); // modesty towel; ships as a 20 % grey placeholder
+            }
+            // The sink's own texture set has lighting baked into it and renders near-black as metal under the scene's
+            // probes, so it gets plain satin stainless instead.
+            else if (model == ScrubSink) d["Sink_Baked.001"] = MaterialLibrary.Get("Hosp_SinkSteel");
             else if (model == Monitor)
             {
                 d["Black metal"] = MaterialLibrary.Get("Polymer_Dark");
                 d["White metal"] = MaterialLibrary.Get("Polymer_White");
             }
             return d;
+        }
+
+        /// <summary>
+        /// PlaceholderFactory splits the room's meshes into parts (mattress, frame, handles…) to material them,
+        /// which needs readable mesh data. The split meshes are saved as their own assets, so this costs no runtime memory.
+        /// </summary>
+        public static void PrepareHospitalRoom() => EnsureReadable(HospitalRoom);
+
+        /// <summary>Editor-side mesh access for builders that measure or split a model (patient navel height, room parts).</summary>
+        public static void EnsureReadable(string model)
+        {
+            if (!(AssetImporter.GetAtPath(model) is ModelImporter mi) || mi.isReadable) return;
+            mi.isReadable = true;
+            mi.SaveAndReimport();
         }
 
         public static void Remap(GameObject instance, Dictionary<string, Material> map)

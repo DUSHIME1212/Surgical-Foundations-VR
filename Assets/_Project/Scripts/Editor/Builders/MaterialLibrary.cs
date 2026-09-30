@@ -28,6 +28,8 @@ namespace SurgicalFoundations.EditorTools
             public bool doubleSided;
             public Kind kind = Kind.Lit;
             public string texture;
+            public string normal;
+            public float normalScale = 1f;
             public Vector2 tiling = Vector2.one;
             // Custom SF shader (Art/Shaders). When set, only the listed properties are applied.
             public string shader;
@@ -148,7 +150,40 @@ namespace SurgicalFoundations.EditorTools
             Specs["UI_Dimmer"] = new Spec { folder = "Lighting", color = new Color(0.02f, 0.04f, 0.05f, 0.7f), kind = Kind.Unlit, transparent = true, doubleSided = true };
             Specs["Guided_DashedRing"] = new Spec { folder = "TrainingProps", color = new Color(0.36f, 0.88f, 0.78f, 1f), kind = Kind.Unlit, transparent = true, texture = SFPaths.Sprites + "/circle_dashed.png" };
 
+            HospitalSurfaces();
             ApplyShaderLibrary();
+        }
+
+        /// <summary>
+        /// Textured surfaces for the hospital-room furniture (HospitalTextures). Mesh UVs are box-projected in metres,
+        /// so tiling = repeats per metre.
+        /// </summary>
+        static void HospitalSurfaces()
+        {
+            void Tex(string key, string surface, string hex, float metallic, float smooth, float tilesPerMetre, float normalScale = 1f, bool albedo = true) =>
+                Specs[key] = new Spec
+                {
+                    folder = "Hospital", color = C(hex), metallic = metallic, smoothness = smooth,
+                    texture = albedo ? HospitalTextures.Path(surface + "_Albedo") : null,
+                    normal = HospitalTextures.Path(surface + "_Normal"), normalScale = normalScale,
+                    tiling = Vector2.one * tilesPerMetre,
+                };
+            Tex("Hosp_Mattress", "Vinyl", "3D6E8E", 0f, 0.5f, 4f);
+            Tex("Hosp_Linen", "Fabric", "EEF1F1", 0f, 0.08f, 8f, 0.8f);
+            Tex("Hosp_Blanket", "Fabric", "C9D8E0", 0f, 0.06f, 6f, 0.9f);
+            Tex("Hosp_BedPanel", "Wood", "FFFFFF", 0f, 0.45f, 1.25f, 0.5f);
+            Tex("Hosp_PowderCoat", "PowderCoat", "D5DADA", 0.15f, 0.45f, 5f, 0.6f);
+            Tex("Hosp_PowderCoatGrey", "PowderCoat", "7D878B", 0.2f, 0.45f, 5f, 0.6f);
+            Tex("Hosp_Laminate", "Laminate", "F0F1EE", 0f, 0.42f, 2f, 0.4f);
+            Tex("Hosp_WoodBeech", "Wood", "FFFFFF", 0f, 0.4f, 1.25f, 0.6f);
+            Tex("Hosp_WoodWalnut", "Wood", "7A5A40", 0f, 0.35f, 1.5f, 0.6f);
+            Tex("Hosp_Upholstery", "Fabric", "2F6F73", 0f, 0.12f, 8f);
+            Tex("Hosp_UpholsteryDark", "Fabric", "22474A", 0f, 0.12f, 8f);
+            Tex("Hosp_O2Cylinder", "PowderCoat", "2E7D4F", 0.2f, 0.55f, 5f, 0.4f);
+            Def("Hosp_Brass", "Hospital", "C9A45C", 1f, 0.6f);
+            // Plain URP Lit steel for the imported scrub sink: its UVs don't suit the Brushed Steel shader's streaks.
+            Def("Hosp_SinkSteel", "Hospital", "C4CACD", 1f, 0.8f);
+            Specs["Hosp_IVBag"] = new Spec { folder = "Hospital", color = new Color(0.92f, 0.96f, 1f, 0.35f), smoothness = 0.85f, transparent = true, doubleSided = true };
         }
 
         /// <summary>
@@ -263,6 +298,13 @@ namespace SurgicalFoundations.EditorTools
                 var tex = AssetDatabase.LoadAssetAtPath<Texture2D>(s.texture);
                 m.SetTexture("_BaseMap", tex);
                 m.SetTextureScale("_BaseMap", s.tiling);
+            }
+            if (!string.IsNullOrEmpty(s.normal))
+            {
+                m.SetTexture("_BumpMap", AssetDatabase.LoadAssetAtPath<Texture2D>(s.normal));
+                m.SetFloat("_BumpScale", s.normalScale);
+                m.EnableKeyword("_NORMALMAP");
+                m.SetTextureScale("_BaseMap", s.tiling); // URP Lit tiles every map with _BaseMap_ST
             }
 
             if (s.kind == Kind.Lit)

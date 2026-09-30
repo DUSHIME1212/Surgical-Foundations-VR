@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🩺 Surgical Foundations VR
+# Surgical Foundations VR
 
 **A laparoscopic skills trainer for Meta Quest 3 one learner, one theatre, about 15 minutes.**
 

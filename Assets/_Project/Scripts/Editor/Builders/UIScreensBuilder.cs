@@ -95,6 +95,11 @@ namespace SurgicalFoundations.EditorTools
             Ser.Set(l, "cue", (int)cue);
         }
 
+        /// <summary>The button moves on without the step being detected; the stage controller logs what was left undone.</summary>
+        static void Skip(Button b) => b.gameObject.AddComponent<SkipStepButton>();
+
+        static TextMeshProUGUI ValueOf(RectTransform kv) => kv.Find("Value").GetComponent<TextMeshProUGUI>();
+
         static RectTransform HRow(Transform parent, float spacing = 16) => HStack(parent, spacing);
 
         /// <summary>Keeps text on one line inside its box: shrinks the font as far as <paramref name="minSize"/>, then ellipsis.</summary>
@@ -371,32 +376,44 @@ namespace SurgicalFoundations.EditorTools
             Text(p, "Step 1 of 4 · Scrub", TS.Eyebrow);
             Text(p, "Surgical scrub", TS.Heading);
             Spacer(p, 4);
-            CheckRow(p, "Remove jewellery, check nails", Row.Done);
-            CheckRow(p, "Pre-wash hands and forearms", Row.Done);
-            CheckRow(p, "Clean under nails", Row.Done);
-            CheckRow(p, "Scrub fingers, hands, forearms", Row.Active, "0:42");
-            CheckRow(p, "Rinse, fingertips up", Row.Pending);
-            CheckRow(p, "Dry with sterile towel", Row.Pending);
+            string[] steps =
+            {
+                "Remove jewellery, check nails", "Pre-wash hands and forearms", "Clean under nails",
+                "Scrub fingers, hands, forearms", "Rinse, fingertips up", "Dry with sterile towel",
+            };
+            var rows = new Object[steps.Length];
+            for (int i = 0; i < steps.Length; i++) rows[i] = LiveCheckRow(p, steps[i]);
+            Ser.SetArray(canvas.gameObject.AddComponent<ScrubPanelBinder>(), "rows", rows);
             Text(p, "Steps are detected from hand motion. Skipped or out-of-order steps are logged as deviations. [Sequence to be signed off by SME]", TS.Small);
-            Advance(Button(p, "Continue to gown & glove", BV.Secondary, 88), -1, StepAdvanceButton.LogKind.OnProtocol, "Surgical scrub complete");
+            Skip(Button(p, "Skip the rest of the scrub", BV.Secondary, 88));
             Save(canvas.gameObject);
         }
 
         static void S06_Sterility()
         {
             var root = NewRoot("UI_06_Sterility");
-            LogOnEnable(root, EventClass.Deviation, "prep.contamination", "Glove touched non-sterile edge", SoundId.FB_Contamination);
+            var binder = root.AddComponent<SterilityPanelBinder>();
+            Ser.Set(binder, "theme", T);
+
+            var g = Screen("Panel_Gloving", 880, V.Panel, 48, 18, out var gc);
+            Place(gc, root.transform, new Vector3(-0.3f, 0, 0));
+            Text(g, "Step 2 of 4 · Gown & glove", TS.Eyebrow);
+            Text(g, "Glove at the back table", TS.Heading);
+            Text(g, "Pick up the glove packet from the back table. Keep your hands above the table and away from its non-sterile edge.", TS.Body, T.textSecondary);
+            Text(g, "Touching a non-sterile surface from here on is logged as a sterility break.", TS.Small);
+            Skip(Button(g, "Skip gloving", BV.Secondary, 88));
+            Ser.Set(binder, "glovingPanel", gc.gameObject);
 
             var p = Screen("Panel_Deviation", 1000, V.Danger, 52, 22, out var dc);
             Place(dc, root.transform, new Vector3(-0.3f, 0, 0));
             var head = HRow(p, 20);
             Icon(head, Warning, 52, T.danger);
-            Chip(head, "Deviation · logged 02:29", Color.Lerp(T.danger, Color.black, 0.88f), T.danger, 40);
+            Chip(head, "Deviation · logged", Color.Lerp(T.danger, Color.black, 0.88f), T.danger, 40);
             Text(p, "Sterility broken", TS.Title);
-            Text(p, "Your left glove touched the non-sterile edge of the back table.", TS.Body, T.textSecondary);
+            Ser.Set(binder, "deviationText", Text(p, "Your left glove touched the non-sterile edge of the back table.", TS.Body, T.textSecondary));
             var rec = Surface(p, V.CardDanger, 30, 14, -1, "Recover");
             Text(rec, "Recover", TS.Eyebrow, T.textPrimary);
-            string[] steps = { "Step back from the sterile field", "Remove the contaminated glove", "Re-glove with assistance" };
+            string[] steps = { "Step back from the sterile field", "Remove the contaminated glove", "Take a fresh glove packet from the back table" };
             for (int i = 0; i < steps.Length; i++)
             {
                 var r = HRow(rec, 18);
@@ -404,14 +421,16 @@ namespace SurgicalFoundations.EditorTools
                 Flex(Text(r, steps[i], TS.Body));
             }
             Text(p, "Your score records both the break and the recovery. In Assessment mode this card is hidden but the event is still logged.", TS.Secondary, T.textPrimary);
-            Advance(Button(p, "Start re-glove", BV.Danger, 92), -1, StepAdvanceButton.LogKind.OnProtocol, "Re-gloved · sterility restored");
+            UnityEditor.Events.UnityEventTools.AddPersistentListener(Button(p, "Re-glove with assistance", BV.Danger, 92).onClick, binder.Reglove);
+            Ser.Set(binder, "deviationPanel", dc.gameObject);
+            dc.gameObject.SetActive(false);
 
             var s = Screen("Panel_SterilityStatus", 620, V.Panel, 42, 6, out var sc);
             Place(sc, root.transform, new Vector3(0.62f, 0.12f, -0.06f), 18f);
             Text(s, "Sterility", TS.Eyebrow);
             Spacer(s, 6);
-            KV(s, "Right glove", "Sterile", T.accent);
-            KV(s, "Left glove", "<b>Contaminated</b>", T.danger);
+            Ser.Set(binder, "rightGlove", ValueOf(KV(s, "Right glove", "Not scrubbed", T.textSecondary)));
+            Ser.Set(binder, "leftGlove", ValueOf(KV(s, "Left glove", "Not scrubbed", T.textSecondary)));
             KV(s, "Gown", "Sterile", T.accent);
             KV(s, "Instruments", "Sterile", T.accent);
             Save(root);
@@ -425,24 +444,24 @@ namespace SurgicalFoundations.EditorTools
             Text(p, "Step 3 of 4 · Opening count", TS.Eyebrow);
             var title = HRow(p);
             Flex(Text(title, "Check the instrument tray", TS.Heading));
-            Text(title, "7 / 8", TS.Mono, T.textSecondary);
+            var tray = root.AddComponent<TrayPanelBinder>();
+            Ser.Set(tray, "total", Text(title, "0 / 13", TS.Mono, T.textSecondary));
             Spacer(p, 8);
-            (string n, string q)[] items = { ("Trocar, 12 mm", "×1"), ("Trocar, 5 mm", "×2"), ("Laparoscope, 30°", "×1"), ("Grasper", "×2"), ("Scissors", "×1") };
-            foreach (var (n, q) in items) { CheckRow(p, n, Row.Muted, q, 60); Divider(p); }
-            CheckRow(p, "Clip applier — not confirmed (tap to confirm)", Row.Warning, "×1", 64);
-            CheckRow(p, "Swabs", Row.Muted, "×5", 60); Divider(p);
-            CheckRow(p, "Drape set", Row.Muted, "×1", 60);
+            string[] items = { "Trocar, 12 mm", "Trocar, 5 mm", "Laparoscope, 30°", "Grasper", "Scissors", "Clip applier", "Swabs" };
+            var rows = new Object[items.Length];
+            for (int i = 0; i < items.Length; i++) rows[i] = LiveCheckRow(p, items[i], 58);
+            Ser.SetArray(tray, "rows", rows);
             Spacer(p, 10);
-            Text(p, "Point at an item on the tray and pull the trigger to confirm it. This becomes the opening count for Close.", TS.Secondary);
+            Text(p, "Point at each item on the back table and pull the trigger to confirm it. This becomes the opening count for Close.", TS.Secondary);
 
             var d = Screen("Panel_Drape", 600, V.Panel, 44, 20, out var dc);
             Place(dc, root.transform, new Vector3(0.55f, 0.06f, -0.05f), 15f);
             Text(d, "Step 4 of 4", TS.Eyebrow);
             Text(d, "Drape and confirm the sterile field", TS.Heading);
-            var locked = Surface(d, V.Card, 22, 0, -1, "DrapeLocked");
-            Text(locked, "Drape locked — 1 item unchecked", TS.BodyStrong, T.textSecondary, TextAlignmentOptions.Center);
-            Text(d, "Emits “Sterile field confirmed” and ends Prep.", TS.Secondary);
-            Advance(Button(d, "Confirm sterile field", BV.Primary, 88), -1, StepAdvanceButton.LogKind.OnProtocol, "Sterile field confirmed");
+            var locked = Surface(d, V.Card, 22, 0, -1, "CountStatus");
+            Ser.Set(tray, "status", Text(locked, "Opening count not finished", TS.BodyStrong, T.textSecondary, TextAlignmentOptions.Center));
+            Text(d, "Confirming with lines unchecked is logged as a deviation for each one.", TS.Secondary);
+            Skip(Button(d, "Confirm sterile field", BV.Primary, 88));
             Save(root);
         }
 
@@ -453,23 +472,26 @@ namespace SurgicalFoundations.EditorTools
             var p = Screen("UI_08_PortSites", 820, V.Panel, 48, 14, out var canvas);
             Text(p, "Access · Step 1 of 2", TS.Eyebrow);
             Text(p, "Mark your port sites", TS.Heading);
-            (string n, string status, Color c, string sub)[] ports =
-            {
-                ("Camera · umbilical", "✓ On target", T.accent, "[n] mm from target"),
-                ("Left working", "Off target", T.warning, "[n] mm from target · re-mark?"),
-                ("Right working", "Pending", T.textSecondary, null),
-            };
-            foreach (var (n, status, c, sub) in ports)
+            string[] ports = { "Camera · umbilical", "Left working", "Right working" };
+            var status = new Object[ports.Length];
+            var detail = new Object[ports.Length];
+            for (int i = 0; i < ports.Length; i++)
             {
                 var v = VStack(p, 4, 0, "Port");
                 var r = HRow(v);
-                Flex(Text(r, n, TS.Body));
-                Text(r, status, TS.Body, c, TextAlignmentOptions.Right);
-                if (sub != null) Text(v, sub, TS.Mono);
+                Flex(Text(r, ports[i], TS.Body));
+                status[i] = Text(r, "Pending", TS.Body, T.textSecondary, TextAlignmentOptions.Right, "Status");
+                var d = Text(v, "", TS.Mono, null, TextAlignmentOptions.TopLeft, "Detail");
+                LE(d, -1, -1, -1, -1, -1, 30); // keeps the row height steady before there is a measurement
+                detail[i] = d;
                 Divider(p);
             }
-            Text(p, "Point and pull the trigger to mark. Dashed zones show safe landmarks in Guided mode only.", TS.Secondary);
-            Advance(Button(p, "Begin trocar entry", BV.Primary, 88), -1, StepAdvanceButton.LogKind.OnProtocol, "Port sites marked");
+            var binder = canvas.gameObject.AddComponent<PortSitesPanelBinder>();
+            Ser.Set(binder, "theme", T);
+            Ser.SetArray(binder, "status", status);
+            Ser.SetArray(binder, "detail", detail);
+            Text(p, "Point at the abdomen and pull the trigger to mark each site. Dashed zones show safe landmarks in Guided mode only.", TS.Secondary);
+            Skip(Button(p, "Continue with these marks", BV.Secondary, 88));
             Save(canvas.gameObject);
         }
 
@@ -478,21 +500,28 @@ namespace SurgicalFoundations.EditorTools
             var root = NewRoot("UI_09_TrocarEntry");
             var p = Screen("Panel_Entry", 780, V.Panel, 48, 22, out var ec);
             Place(ec, root.transform, Vector3.zero);
-            Text(p, "Port 2 of 3 · First pass", TS.Eyebrow);
+            var binder = root.AddComponent<TrocarPanelBinder>();
+            Ser.Set(binder, "theme", T);
+            Ser.Set(binder, "eyebrow", Text(p, "Port 1 of 3", TS.Eyebrow));
             Text(p, "Insert the trocar", TS.Heading);
-            Gauge(p, "Angle", "<mspace=0.62em>[°]</mspace>  shallow", T.warning, 0f, T.accent, 0.35f, T.warning, new Vector2(0.47f, 0.77f));
-            Gauge(p, "Depth", "<mspace=0.62em>[mm]</mspace>", T.accent, 0.55f, T.accent);
-            Gauge(p, "Force", "OK", T.accent, 0.4f, T.accent, 0.77f, T.danger);
-            KV(p, "Camera view", "✓ Tip visible", T.accent);
-            Advance(Button(p, "Port placed · continue", BV.Primary, 88), 3, StepAdvanceButton.LogKind.OnProtocol, "Port placed");
-            Advance(Button(p, "Show unsafe-entry branch", BV.Secondary, 80), 2, StepAdvanceButton.LogKind.Deviation, "Trocar entered too deep — vessel injury");
+            // Gauge scales match TrocarPanelBinder: angle 0–45° (tolerance 15°), depth 0–70 mm (safe 33–58 mm), force to 1.3× the limit.
+            TextMeshProUGUI GaugeValue(RectTransform fill) => fill.parent.parent.Find("Labels/Value").GetComponent<TextMeshProUGUI>();
+            var angle = Gauge(p, "Angle", "<mspace=0.62em>0°</mspace>  on axis", T.accent, 0f, T.accent, -1, null, new Vector2(0f, 0.33f));
+            var depth = Gauge(p, "Depth", "<mspace=0.62em>0</mspace> mm", T.accent, 0f, T.accent, -1, null, new Vector2(0.47f, 0.83f));
+            var force = Gauge(p, "Force", "OK", T.accent, 0f, T.accent, 0.77f, T.danger);
+            Ser.Set(binder, "angleFill", angle); Ser.Set(binder, "angleValue", GaugeValue(angle));
+            Ser.Set(binder, "depthFill", depth); Ser.Set(binder, "depthValue", GaugeValue(depth));
+            Ser.Set(binder, "forceFill", force); Ser.Set(binder, "forceValue", GaugeValue(force));
+            Text(p, "Hold the trocar over the marked site, line it up with the entry axis and push steadily until it is through, then hold.", TS.Secondary);
+            Skip(Button(p, "Skip remaining ports", BV.Secondary, 84));
 
             var f = Screen("Panel_TechniqueFlag", 600, V.Warning, 36, 10, out var fc);
             Place(fc, root.transform, new Vector3(1.22f, 0.18f, -0.08f), 16f);
-            LogOnEnable(fc.gameObject, EventClass.Delayed, "access.angle", "Angle too shallow", SoundId.FB_TechniqueFlag);
-            Text(f, "Technique flag · <200 ms", TS.Eyebrow, T.warning);
-            Text(f, "Angle too shallow", TS.Subheading);
-            Text(f, "Raise the trocar toward the target zone before pushing further.", TS.Secondary, T.textPrimary);
+            Text(f, "Technique flag", TS.Eyebrow, T.warning);
+            Ser.Set(binder, "flagTitle", Text(f, "Angle off the entry axis", TS.Subheading));
+            Text(f, "Line the trocar up with the entry axis before pushing further.", TS.Secondary, T.textPrimary);
+            Ser.Set(binder, "flagPanel", fc.gameObject);
+            fc.gameObject.SetActive(false);
             Save(root);
         }
 
@@ -503,23 +532,39 @@ namespace SurgicalFoundations.EditorTools
             Chip(chipRow, "Branch taken · depth over threshold", Color.Lerp(T.danger, Color.black, 0.88f), T.danger, 40);
             Text(p, "Bleeding at the entry site", TS.Title);
             Text(p, "Unsafe entry caused a simulated vessel injury. Manage it to continue.", TS.Body, T.textSecondary);
-            (string t, int state)[] rows = { ("Keep the bleed in camera view", 0), ("Apply pressure with the grasper", 1), ("[Next management step — SME to define]", 2) };
-            foreach (var (t, state) in rows)
+            Ser.SetArray(canvas.gameObject.AddComponent<BleedPanelBinder>(), "rows", new Object[]
             {
-                var r = HStack(p, 20, "Row", TextAnchor.MiddleLeft, 22, 0);
-                Fill(r, AssetDatabase.LoadAssetAtPath<Sprite>(SFPaths.Sprites + "/card_r14.png"), T.dangerInset, 0.75f);
-                if (state == 1) Outline(r, AssetDatabase.LoadAssetAtPath<Sprite>(SFPaths.Sprites + "/card_r14_outline.png"), T.danger, 0.75f);
-                if (state == 0) Icon(r, Check, 28, T.accent);
-                else Icon(r, AssetDatabase.LoadAssetAtPath<Sprite>(SFPaths.Sprites + "/circle_outline.png"), 30, state == 1 ? T.danger : T.textMuted);
-                Flex(Text(r, t, TS.Body, state == 2 ? T.textSecondary : T.textPrimary));
-                LE(r, -1, 70);
-            }
-            Advance(Button(p, "Bleeding controlled · continue", BV.Danger, 88), 3, StepAdvanceButton.LogKind.Delayed, "Bleeding controlled");
-            Text(p, "Time to control and every action are logged for replay.", TS.Secondary, T.textPrimary);
+                LiveCheckRow(p, "Stop. Draw the trocar back", 70),
+                LiveCheckRow(p, "Press on the site with your hand and hold", 70),
+                LiveCheckRow(p, "Let go and watch the site stay dry", 70),
+            });
+            Text(p, "Time to control and every action are logged for replay. [Steps to be defined by SME]", TS.Secondary, T.textPrimary);
+            Skip(Button(p, "Carry on without controlling it", BV.DangerOutline, 84));
             Save(canvas.gameObject);
         }
 
         // ───────────── Operate: 11 / 12 ─────────────
+
+        /// <summary>The camera-assistant chips under the monitor: six commands, and who holds the scope.</summary>
+        static void CameraBar(Transform root)
+        {
+            var cam = Canvas("Bar_CameraAssistant", 1640, 110);
+            cam.gameObject.AddComponent<UIPanel>();
+            Place(cam, root, new Vector3(0, -0.5f, -0.05f));
+            var bar = HStack(cam, 14, "Chips", TextAnchor.MiddleCenter);
+            Stretch(bar);
+            Text(bar, "Camera assistant", TS.Eyebrow);
+            // Same order as CameraCommand.
+            string[] labels = { "Pan left", "Pan right", "Pan up", "Pan down", "Zoom in", "Zoom out" };
+            var chips = new Object[labels.Length];
+            for (int i = 0; i < labels.Length; i++) chips[i] = Button(bar, labels[i], BV.Chip, 64);
+            var binder = cam.gameObject.AddComponent<CameraAssistantBar>();
+            Ser.SetArray(binder, "commands", chips);
+            Ser.Set(binder, "holdMyself", Button(bar, "Hold myself", BV.Chip, 64));
+            var holding = Button(bar, "Holding myself", BV.ChipSelected, 64);
+            Ser.Set(binder, "holdingMyself", holding);
+            holding.gameObject.SetActive(false);
+        }
 
         static void S11_Operate()
         {
@@ -528,33 +573,22 @@ namespace SurgicalFoundations.EditorTools
             Place(tc, root.transform, new Vector3(-1.02f, 0.1f, -0.1f), -18f);
             Text(t, "Tasks", TS.Eyebrow);
             Spacer(t, 4);
-            CheckRow(t, "Grasp & transfer", Row.Muted);
-            CheckRow(t, "Peg transfer", Row.Active, "2/6");
-            CheckRow(t, "Dissection", Row.Pending);
-            CheckRow(t, "Clip & cut", Row.Pending);
+            var tasks = root.AddComponent<TasksPanelBinder>();
+            Ser.SetArray(tasks, "rows", new Object[] { LiveCheckRow(t, "Peg transfer"), LiveCheckRow(t, "Dissection"), LiveCheckRow(t, "Clip & cut") });
+            Text(t, "Tasks run in this order. Swap instruments through the ports: dissector to open the plane, clip applier then scissors to divide the duct.", TS.Small);
 
             var m = Screen("Panel_ThisTask", 560, V.Panel, 40, 6, out var mc);
             Place(mc, root.transform, new Vector3(1.02f, 0.06f, -0.1f), 18f);
             Text(m, "This task", TS.Eyebrow);
             Spacer(m, 4);
-            KV(m, "Time", "[mm:ss]", T.textPrimary, true);
-            KV(m, "Path length", "[m]", T.textPrimary, true);
-            KV(m, "Economy of motion", "[%]", T.textPrimary, true);
-            KV(m, "Drops / errors", "[n]", T.textPrimary, true);
+            Ser.Set(tasks, "time", ValueOf(KV(m, "Time", "0:00", T.textPrimary, true)));
+            Ser.Set(tasks, "path", ValueOf(KV(m, "Path length", "0.00 m", T.textPrimary, true)));
+            Ser.Set(tasks, "errors", ValueOf(KV(m, "Drops / errors", "0", T.textPrimary, true)));
             Text(m, "Live metrics show in Guided mode only.", TS.Small);
             Spacer(m, 6);
-            Advance(Button(m, "Next: drift example", BV.Secondary, 84), -1, StepAdvanceButton.LogKind.OnProtocol, "Ring 3 transferred");
+            Skip(Button(m, "Finish tasks · go to Close", BV.Secondary, 84));
 
-            var cam = Canvas("Bar_CameraAssistant", 1300, 110);
-            cam.gameObject.AddComponent<UIPanel>();
-            Place(cam, root.transform, new Vector3(0, -0.5f, -0.05f));
-            var bar = HStack(cam, 16, "Chips", TextAnchor.MiddleCenter);
-            Stretch(bar);
-            Text(bar, "Camera assistant", TS.Eyebrow);
-            Button(bar, "“Zoom in”", BV.Chip, 64);
-            Button(bar, "“Pan left”", BV.Chip, 64);
-            Button(bar, "“Pan right”", BV.Chip, 64);
-            Button(bar, "Hold myself", BV.ChipSelected, 64);
+            CameraBar(root.transform);
             Save(root);
         }
 
@@ -563,7 +597,6 @@ namespace SurgicalFoundations.EditorTools
             var root = NewRoot("UI_12_Drift");
             var p = Screen("Panel_EventLog", 580, V.Panel, 40, 10, out var pc);
             Place(pc, root.transform, new Vector3(1.02f, 0.06f, -0.1f), 18f);
-            LogOnEnable(pc.gameObject, EventClass.Delayed, "operate.drift", "Drift corrected", SoundId.FB_DriftPing);
             Text(p, "Event log", TS.Eyebrow);
             (string cls, Color c, string msg, string time)[] ev =
             {
@@ -581,7 +614,8 @@ namespace SurgicalFoundations.EditorTools
                 Divider(p);
             }
             Spacer(p, 6);
-            Advance(Button(p, "All tasks done · go to Close", BV.Primary, 88), -1, StepAdvanceButton.LogKind.OnProtocol, "All tasks done");
+            Skip(Button(p, "Finish tasks · go to Close", BV.Secondary, 88));
+            CameraBar(root.transform);
             Save(root);
         }
 
@@ -627,27 +661,36 @@ namespace SurgicalFoundations.EditorTools
             Divider(p);
             TableRow("Trocars", "3", "3", "✓ Match", null, T.accent); Divider(p);
             TableRow("Instruments", "5", "5", "✓ Match", null, T.accent); Divider(p);
-            TableRow("Swabs", "5", "4", "1 missing", T.warning, T.warning); Divider(p);
+            var swabs = TableRow("Swabs", "5", "0", "5 to count", T.warning, T.warning); Divider(p);
             Spacer(p, 10);
             var w = Surface(p, V.CardWarning, 30, 14, -1, "ClosureBlocked");
-            Text(w, "Closure blocked — 1 swab unaccounted for", TS.Subheading);
-            Text(w, "Search the operative field on the monitor and the floor around the table. Time spent searching is logged.", TS.Secondary, T.textPrimary);
-            Advance(Button(w, "Swab located in the field", BV.Warning, 88), -1, StepAdvanceButton.LogKind.Delayed, "Swab located · search time logged");
+            var blocked = Text(w, "Closure blocked: 5 swabs unaccounted for", TS.Subheading);
+            Text(w, "Drop each swab into the bucket to count it. If one is missing, search the operative field and the floor around the table. Time spent searching is logged.", TS.Secondary, T.textPrimary);
+            Skip(Button(w, "Close anyway · count unresolved", BV.Warning, 88));
+
+            var binder = canvas.gameObject.AddComponent<CountPanelBinder>();
+            Ser.Set(binder, "theme", T);
+            Ser.Set(binder, "swabsOpening", swabs.GetChild(1).GetComponent<TextMeshProUGUI>());
+            Ser.Set(binder, "swabsNow", swabs.GetChild(2).GetComponent<TextMeshProUGUI>());
+            Ser.Set(binder, "swabsStatus", swabs.GetChild(3).GetComponent<TextMeshProUGUI>());
+            Ser.Set(binder, "blockedCard", w.gameObject);
+            Ser.Set(binder, "blockedTitle", blocked);
             Save(canvas.gameObject);
         }
 
         static void S15_PortRemoval()
         {
-            var p = Screen("UI_15_PortRemoval", 620, V.Panel, 44, 10, out var canvas);
+            var p = Screen("UI_15_PortRemoval", 700, V.Panel, 44, 10, out var canvas);
             Text(p, "Close · Step 2 of 2", TS.Eyebrow);
-            Text(p, "Remove ports under vision", TS.Heading);
+            Text(p, "Remove ports, close the sites", TS.Heading);
             Spacer(p, 4);
-            CheckRow(p, "Right working port", Row.Muted);
-            CheckRow(p, "Left working port", Row.Active);
-            CheckRow(p, "Camera port (last)", Row.Pending);
-            Text(p, "Removing a port without camera view is logged as a deviation.", TS.Small);
+            Ser.SetArray(canvas.gameObject.AddComponent<ClosurePanelBinder>(), "rows", new Object[]
+            {
+                LiveCheckRow(p, "Right working port"), LiveCheckRow(p, "Left working port"), LiveCheckRow(p, "Camera port (last)"),
+            });
+            Text(p, "Lift each port out while its site is on the monitor, then close the site: one bite of the needle on each side. Removing a port without camera view is logged as a deviation.", TS.Small);
             Spacer(p, 6);
-            Advance(Button(p, "Closure completed", BV.Primary, 88), -1, StepAdvanceButton.LogKind.OnProtocol, "Closure completed");
+            Skip(Button(p, "Finish · leave the rest", BV.Secondary, 88));
             Save(canvas.gameObject);
         }
 
@@ -668,8 +711,8 @@ namespace SurgicalFoundations.EditorTools
             cols.GetComponent<HorizontalLayoutGroup>().childForceExpandWidth = true;
 
             var left = VStack(cols, 16, 0, "Left");
-            LE(left, -1, -1, 1);
-            var eyebrow = Text(left, "Closure completed · Guided mode · 14:20", TS.Eyebrow);
+            LE(left, 0, -1, 1); // preferred width 0 + equal flex: the two columns split the panel evenly whatever the text
+            var eyebrow = Text(left, "Guided mode · 14:20", TS.Eyebrow);
             Text(left, "Session summary", TS.Heading);
             var score = HRow(left, 26);
             var scoreText = Text(score, "82", TS.Display, null, TextAlignmentOptions.Left, "Score");
@@ -702,7 +745,7 @@ namespace SurgicalFoundations.EditorTools
             Text(left, "White tick = stage pass mark.", TS.Secondary);
 
             var right = VStack(cols, 16, 0, "Right");
-            LE(right, -1, -1, 1);
+            LE(right, 0, -1, 1);
             Text(right, "Top 3 to work on", TS.Eyebrow);
             (string time, string title, string meta, Color c)[] top =
             {
@@ -720,7 +763,11 @@ namespace SurgicalFoundations.EditorTools
                 var card = Surface(right, V.Card, 26, 0, -1, "Issue");
                 var r = HRow(card, 22);
                 r.GetComponent<HorizontalLayoutGroup>().childAlignment = TextAnchor.UpperLeft;
-                times[i] = Text(r, time, TS.Mono);
+                // "mm:ss" must never wrap or be squeezed by a long title beside it (5 monospaced characters ≈ 78 px).
+                var timeText = Text(r, time, TS.Mono);
+                timeText.textWrappingMode = TextWrappingModes.NoWrap;
+                LE(timeText, 80, -1, 0, -1, 80);
+                times[i] = timeText;
                 var v = VStack(r, 4, 0, "Text");
                 LE(v, -1, -1, 1);
                 titles[i] = Text(v, title, TS.BodyStrong);
@@ -728,7 +775,7 @@ namespace SurgicalFoundations.EditorTools
                 cards[i] = card.gameObject;
             }
             var b = HRow(right, 18);
-            var retry = Button(b, "Retry Access stage", BV.Primary, 90, -1, 1, binder.RetryWeakestStage);
+            var retry = Button(b, "Retry Access", BV.Primary, 90, -1, 1, binder.RetryWeakestStage);
             Button(b, "Retry full scenario", BV.Secondary, 90, -1, 1, actions.RetryScenario);
             Button(right, "Back to lobby", BV.Link, 70, -1, -1, actions.BackToLobby);
             var status = StatusLine(right, "Offline — result and replay queued, will sync to your LMS automatically", T.warning);

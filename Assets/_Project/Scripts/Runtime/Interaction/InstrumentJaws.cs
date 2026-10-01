@@ -2,12 +2,13 @@ using SurgicalFoundations.Audio;
 using UnityEngine;
 using UnityEngine.XR.Interaction.Toolkit;
 using UnityEngine.XR.Interaction.Toolkit.Interactables;
+using UnityEngine.XR.Interaction.Toolkit.Interactors;
 
 namespace SurgicalFoundations.Interaction
 {
     /// <summary>
-    /// Opens and closes an instrument's jaws or blades. Jaws are open at rest and close while the instrument is
-    /// activated (trigger). Replace with analogue trigger value 0–1 once the input layer lands (asset list: "Jaw open/close").
+    /// Opens and closes an instrument's jaws or blades. Jaws are open at rest and follow the holding hand's trigger
+    /// (or pinch) continuously: half a squeeze is half closed, so tissue can be held gently or crushed.
     /// </summary>
     public class InstrumentJaws : MonoBehaviour
     {
@@ -22,6 +23,8 @@ namespace SurgicalFoundations.Interaction
         Quaternion upperRest, lowerRest;
         float openness = 1f;
         float target = 1f;
+        bool closedCue;
+        bool wasHeld;
 
         void Awake()
         {
@@ -50,26 +53,48 @@ namespace SurgicalFoundations.Interaction
 
         void OnGrabbed(SelectEnterEventArgs _) => AudioManager.Instance?.PlayAt(SoundId.INST_PickupMetal, transform.position);
 
-        void OnActivated(ActivateEventArgs _)
-        {
-            target = 0f;
-            AudioManager.Instance?.PlayAt(closeSound, transform.position);
-        }
-
-        void OnDeactivated(DeactivateEventArgs _)
-        {
-            target = 1f;
-            AudioManager.Instance?.PlayAt(openSound, transform.position);
-        }
+        // Fallback for interactors with no analogue value (e.g. a poke or gaze interactor): fully closed or fully open.
+        void OnActivated(ActivateEventArgs _) => target = 0f;
+        void OnDeactivated(DeactivateEventArgs _) => target = 1f;
 
         public void SetOpenness(float value) => target = Mathf.Clamp01(value);
 
         /// <summary>0 = closed, 1 = open. Recorded in session replays.</summary>
         public float Openness => openness;
+        /// <summary>How hard the jaws are being squeezed, 0–1 (the trigger value).</summary>
+        public float Squeeze => 1f - target;
+        public bool IsClosed => openness <= ClosedBelow;
+
+        const float ClosedBelow = 0.25f;
+        const float OpenAbove = 0.6f;
 
         void Update()
         {
+            var hand = grab != null && grab.isSelected ? grab.firstInteractorSelecting as XRBaseInputInteractor : null;
+            if (hand != null)
+            {
+                target = 1f - Mathf.Clamp01(hand.activateInput.ReadValue());
+                wasHeld = true;
+            }
+            else if (wasHeld)
+            {
+                wasHeld = false;
+                target = 1f; // let go: the handle springs open
+            }
+
             openness = Mathf.MoveTowards(openness, target, speed * Time.deltaTime);
+            // One click as the jaws shut and one as they open, not a sound per frame of trigger travel.
+            if (!closedCue && openness <= ClosedBelow)
+            {
+                closedCue = true;
+                AudioManager.Instance?.PlayAt(closeSound, transform.position);
+            }
+            else if (closedCue && openness >= OpenAbove)
+            {
+                closedCue = false;
+                AudioManager.Instance?.PlayAt(openSound, transform.position);
+            }
+
             float a = openAngle * 0.5f * openness;
             if (upperJaw != null) upperJaw.localRotation = upperRest * Quaternion.Euler(-a, 0f, 0f);
             if (lowerJaw != null) lowerJaw.localRotation = lowerRest * Quaternion.Euler(a, 0f, 0f);

@@ -362,6 +362,89 @@ Every protocol event is a `ProtocolEvent { id (client UUID), sessionTime, stage,
 
 Toasts, sounds and the vignette appear only in **Guided** mode. In **Assessment** mode, events are still logged silently.
 
+### Step detection
+
+Events come from what the learner does, not from buttons. Each stage scene gets a controller when it loads (`DetectionInstaller`, no scene wiring), and each controller is a thin sensor around a plain C# rule class that can be unit-tested without a headset.
+
+| Stage | Controller | Rule class | What is measured | Stage moves on when |
+|---|---|---|---|---|
+| Prep | `PrepController` | `ScrubSequence` | Where both hands are (under the tap, at the towels, in front of the eyes), whether they are together and rubbing, fingertips up | All six scrub steps are held for their time, in order |
+| Prep | `PrepController` | `TrayCheck` | The item nearest the hand's pointing ray when the trigger is pulled, for every instrument and swab on the back table | n/a: the learner confirms the sterile field; lines left unchecked are deviations |
+| Theatre (all stages) | `SterilityMonitor` | `SterilityState` | Gloved hands against `NonSterileEdge…` colliders, and hands held below table level | n/a: a break is logged, recovery is taking a fresh glove packet |
+| Access | `AccessController` | `PortSitePlan` | Where the pointing ray meets the skin when the trigger is pulled, against each landmark target | All three marks are within the target radius |
+| Access | `AccessController` | `TrocarEntry` | Tip depth below the skin, angle off the entry axis, push speed as a stand-in for force | Each trocar is held in the safe depth window, on axis, for 1 s. Too deep jumps to the bleed branch |
+| Access | `AccessController` | `BleedControl` | After an unsafe entry: trocar depth (drawn back), a hand on the site (pressure, held 5 s), head direction with the hand off (watching, 3 s) | The bleed is controlled: entry carries on with the next port |
+| Operate | `OperateController` | `DriftMonitor` | Each inserted instrument tip in the laparoscope camera's viewport | n/a: drift is logged, the drift panel shows until the tip is back in view |
+| Operate | `OperateTasks` | `PegTransfer` | Jaws closing on a ring, and where the ring is when they open | All six rings are on the far row of pegs |
+| Operate | `OperateTasks` | `Dissection` | The dissector's jaws spreading at each point of the plane; tip speed inside the tissue | All five points are opened |
+| Operate | `OperateTasks` | `ClipAndCut` | The clip applier closing at each clip site, the scissors closing at the cut point | The structure is cut (unclipped = deviation). Last task: ends Operate |
+| Close | `CloseController` | `SwabCount` | Swabs released inside the kick bucket; one swab is hidden at a seeded spot | Counted swabs equal the opening count |
+| Close | `CloseController` | `PortRemoval` | Each port lifted 6 cm from where it sat, and whether its site was on the monitor at that moment | n/a: blind removal, or the camera port before the others, is a deviation |
+| Close | `CloseController` | `PortClosure` | The needle holder closing at each side of a removed port's site | Every port is out and every site has its stitch: ends the scenario |
+
+**Why it is built this way**
+
+- **Rules separate from sensors.** `ScrubSequence`, `TrocarEntry` and the rest take numbers and booleans, so the tests in `DetectionLogicTests` and `TaskLogicTests` run in milliseconds and an SME change to a rule is a one-file edit.
+- **Small props are placed, not simulated.** A 2 cm ring on a 6 mm peg, a clip, a stitch: at that size the physics engine is unreliable on a headset, and a ring that jitters off its peg would be scored as the learner's mistake. The jaws pick a ring up, carry it, and it snaps to the peg it is released over.
+- **Tissue force is measured by tip speed for now.** Until soft tissue (FR-14) reports real strain, an instrument moved fast while inside the tissue volume is logged as excess force. The threshold is in the scoring config.
+- **Thresholds come from the scoring config** (`ThresholdKeys`), with built-in fallbacks. The values that decide a deviation are versioned with the scores they produce (FR-18).
+- **Event codes are shared with the server** (`EventCodes` in the Contracts package), so a code can't be spelled one way in the headset and another in the scoring config.
+- **Every panel keeps a skip button** ("Skip the rest of the scrub", "Close anyway"). Skipping logs what was left undone as deviations, so a learner is never stuck and never gets a free pass. Closing with a swab unaccounted for is the one critical event that fails the run.
+- **A dropped hand is one break, not a stream of them.** Hands below table level are non-sterile, but the hand has to come back up before dropping it can be logged again, and a controller that isn't being tracked is ignored.
+- **Guided vs Assessment.** Detection and logging are identical in both. Guided adds the help: landmark rings, on/off-target read-outs, the technique flag, the recovery card and the coaching voice lines.
+
+All detection limits are placeholders until the SME signs them off.
+
+### Guided mode
+
+Guided and Assessment run the same detection and log the same events. Guided adds coaching on top; Assessment removes all of it (FR-19).
+
+| Aid | Where it comes from | What it does |
+|---|---|---|
+| Highlight | `GuidedHighlight` + each controller's `GuideTarget` | One pulsing marker on whatever the step needs next: the tap, the towels, the glove packet, the next port site, the ring to pick up, then the peg to put it on, the instrument to fetch from the Mayo stand, then the free port to pass it through. It moves the moment detection sees the step done, and it shows on the laparoscope monitor for targets inside the abdomen. |
+| Scrub nurse | `ScrubNurse` | Turns to face the learner and says one short line for events worth a word ("That was cut before it was clipped", "The camera port comes out last"). Lines are subtitles until the voice-over is recorded. |
+| Coaching voice | `DetectionLog` | The recorded lines for a sterility break and a shallow trocar angle play when the event happens. |
+| Read-outs | Stage panels | On/off-target distances, the technique flag, the recovery card, live task metrics, landmark rings and stitch points. |
+
+**Why it is built this way**
+
+- **One target, not many.** A beginner who is shown everything at once looks at nothing. The highlight answers a single question: what next?
+- **The hidden swab is never highlighted.** Finding it is the exercise.
+- **The controller decides the target, the highlight only draws it.** Each stage already knows what it is waiting for, so guidance can't drift out of step with detection.
+- **The nurse reads the event log.** She needs no wiring to the stages: any event code with a line gets said, and adding a line is one dictionary entry.
+
+### Instruments through ports
+
+Keyhole instruments are not held like ordinary objects: the shaft passes through a port in the abdominal wall, so the hand can only pivot it about that point, slide it in and out, and roll it. Moving the hand left swings the tip right (FR-10).
+
+| Piece | What it does |
+|---|---|
+| `InstrumentPort` | Added at runtime to every `Trocar_*`. Knows its fulcrum (on the skin), its valve (where instruments go in) and which instrument is in it. One instrument per port. |
+| `LapInstrument` | Added at runtime to every instrument with a shaft. Free in the hand outside the patient; fulcrum-constrained once the tip enters a valve; free again when pulled right out. Let go outside a port, it returns to the Mayo stand. |
+| `FulcrumSolver` | The geometry, as plain maths: from the hand position and roll it returns the pose whose shaft passes exactly through the port, within the shaft's travel. |
+| `InstrumentJaws` | Jaws follow the trigger (or pinch) continuously, 0–1, with one click as they shut and one as they open. |
+
+**Why it is built this way**
+
+- **Position comes from the port, not from physics joints.** A configurable joint through a moving hand jitters at Quest frame rates. Solving the pose directly is stable, costs nothing, and is exact: the shaft never leaves the port.
+- **The scenes were not rebuilt.** Ports and instruments get their behaviour when a stage loads (`InstrumentInstaller`), so the baked lighting is untouched.
+- **Instrument exchange is the same mechanism.** Pull an instrument out past the valve and it is free; put another one's tip to the valve and it is constrained. The scope can't be withdrawn: taking the camera out blinds the team.
+- **The laparoscope camera rides on the scope**, so moving the scope moves the picture on the monitor.
+- **Wrist roll rolls the shaft.** The thumbstick is left alone because it belongs to turning and teleporting.
+
+### Camera assistant
+
+In Operate the laparoscope is held by a camera assistant (`CameraAssistant`), so both of the learner's hands are free for instruments. The chips under the monitor (`CameraAssistantBar`) ask for the view to be moved: pan left, right, up, down, zoom in, zoom out. Each chip moves the target by one step (8° or 2 cm, `CameraAim`) and the scope glides there about its port. **Hold myself** hands the scope to the learner, who then steers it by hand through the port; the command chips go dim until the assistant has it back.
+
+**Why it is built this way**
+
+- **The assistant holds by default.** The tasks need two instruments; a learner holding the camera has one hand left.
+- **Left and up mean left and up on the monitor.** The pan axes are taken from the camera's view, not from the scope, whose roll depends on how it sits in the port.
+- **Zoom is the scope moving in and out**, as it is in theatre, not a change of lens.
+- **Every command is logged** (`operate.camera.command`, no penalty). How often a trainee has to ask for the camera is a measure of how well they plan their view, and it is there for the educator in the replay.
+- **The chips are buttons for now.** The design shows them as spoken commands; speech recognition is not built.
+- **Close has no assistant.** There the learner steers the scope by hand, because aiming it at each port site is part of removing ports under vision.
+
 ---
 
 ## ⚙ Systems in depth
@@ -453,13 +536,18 @@ Toasts, sounds and the vignette appear only in **Guided** mode. In **Assessment*
 | **Audio** | `AudioManager` | Pooled playback, categories, ducking, loops, voice + subtitles |
 | | `SoundBank` / `SoundId` | Data table and enum of every sound |
 | | `AmbientEmitter` · `ImpactSound` | Looping emitters; collision sounds |
-| **Interaction** | `InstrumentJaws` · `GrabSound` · `EyeGazeActivator` | Jaw animation + sounds; pickup sounds; conditional eye gaze |
+| **Interaction** | `LapInstrument` · `InstrumentPort` · `FulcrumSolver` · `InstrumentInstaller` | Fulcrum-constrained instruments through ports, instrument exchange (FR-10) |
+| | `InstrumentJaws` · `GrabSound` · `EyeGazeActivator` | Analogue jaws + sounds; pickup sounds; conditional eye gaze |
 | **Lighting** | `SurgicalLight` · `LaparoscopeFeed` · `PlatformPostProcessing` | Light-head control with emissive lens; scope RT feed; post on/off per platform |
 | **Rendering** | `ShaderPropertyAnimator` · `SimpleMotion` · `DisableOnMobileXR` | Animate shader floats; demo motion; drop heavy FX on Quest |
 | **Placeholders** | `PlaceholderInfo` | Asset-list metadata and "is placeholder" flag on every prefab |
 | **UI** | `UITheme` · `UIPanel` · `UIButtonFeedback` · `SegmentedOption` | Tokens, panel tweens, button feel, toggle cards |
 | | `StageRail` · `SessionHudBinder` · `EventToastPresenter` · `SubtitlePresenter` | HUD widgets |
-| | `StepSequence` · `StepAdvanceButton` · `LogEventOnEnable` | Stage step flow and demo events |
+| | `StepSequence` · `StepAdvanceButton` · `SkipStepButton` | Stage step flow; skip logs what was left undone |
+| | `ScrubPanelBinder` · `SterilityPanelBinder` · `PortSitesPanelBinder` · `TrocarPanelBinder` · `CountPanelBinder` · `ChecklistRow` | Stage panels showing live detection state |
+| **Detection** | `PrepController` · `AccessController` · `OperateController` · `CloseController` · `SterilityMonitor` | Per-stage sensors that feed the rules and advance the stage |
+| | `OperateTasks` · `CameraAssistant` · `GuidedHighlight` · `ScrubNurse` | Operate task sensors; camera assistant; Guided-mode highlight and nurse reactions |
+| | `ScrubSequence` · `SterilityState` · `PortSitePlan` · `TrocarEntry` · `DriftMonitor` · `SwabCount` | The rules themselves (plain C#, unit-tested) |
 | | `PauseMenu` · `DeviationVignette` · `UIMotion` · `UIActions` | Pause, deviation flash, summary animation, button bridge |
 
 ### Editor (`Assets/_Project/Scripts/Editor`)
@@ -811,7 +899,8 @@ Categories: `ENV` environment · `EQ` equipment · `INST` instrument · `PPE` ·
 
 - [ ] Play from `00_Bootstrap`: lobby loads, no console errors.
 - [ ] Start scenario → Prep loads on top of the theatre; the rig is at the scrub sink.
-- [ ] Step through Prep → Access → Operate → Close → Summary; each stage unloads cleanly.
+- [ ] Step through Prep → Access → Operate → Close → Summary (by doing the steps, or with the skip buttons); each stage unloads cleanly.
+- [ ] Test Runner → EditMode: all tests pass (replay format, scoring, detection rules).
 - [ ] Toasts, sounds and the deviation flash fire in Guided mode and are silent in Assessment.
 - [ ] Laparoscope feed fades in on the tower monitor in Access, Operate and Close.
 - [ ] Esc / Menu pauses: timer stops, world dims, Resume works.
@@ -887,16 +976,20 @@ LiberationSans has no U+2713. Create text through `UIKit.Text(...)` (it swaps �
 - [x] Baked, Quest-tuned lighting; laparoscope feed
 - [x] 63 original sounds, SoundBank, AudioManager
 - [x] 20 custom URP shaders + gallery
-- [ ] Step detection (scrub motions, sterility contacts, trocar depth/angle/force, drift, count)
-- [x] On-device scoring engine with versioned scoring config (FR-17, FR-18): scores come from the placeholder events until step detection lands
+- [x] Step detection (scrub motions, sterility contacts, port sites, trocar depth/angle/force, drift, swab count): verified in the editor with simulated hands, not yet on a headset
+- [x] On-device scoring engine with versioned scoring config (FR-17, FR-18)
+- [x] Operate tasks (peg transfer, dissection, clip-and-cut), port removal under vision, port-site closure: verified in the editor with scripted instruments, not yet on a headset
+- [x] Opening count by pointing (Prep step 3) and the vessel-injury branch (draw back, hold pressure, watch): verified in the editor; the bleed steps and their timings are placeholders for the SME
 - [x] Pose recorder ≥ 30 Hz + replay file writer and upload (FR-21)
 - [x] Replay viewer playback (FR-22): timeline with event markers, learner / laparoscope / free cameras
 - [x] Offline sync queue with idempotent event upload (FR-25, NFR-09)
 - [x] Sign-in (QR device flow, LMS session code, guest), lobby history and assignments, real summary
-- [ ] Fulcrum-constrained instrument movement through ports (FR-10)
-- [ ] Obi Softbody dissection tissue (FR-14)
+- [x] Fulcrum-constrained instrument movement through ports, wrist-roll shaft rotation, analogue jaws, instrument exchange (FR-10): verified in the editor, feel still to be tuned on a headset
+- [x] Guided mode: step highlight, scrub nurse reactions, coaching lines on real events (FR-19); nurse lines are subtitles until recorded
+- [ ] Obi Softbody dissection tissue (FR-14): needs the Obi Softbody asset imported; dissection uses marked points and a tip-speed force rule until then
 - [ ] Final art, recorded voice-over, licensed fonts
-- [ ] **R2:** vessel-injury branch logic, tissue tearing and bleeding, camera assistant (users, cohorts and analytics are done on the backend)
+- [x] Camera assistant: pan and zoom on request, or hold the scope yourself (buttons; voice commands not built)
+- [ ] **R2:** tissue tearing and bleeding, spoken camera commands (users, cohorts and analytics are done on the backend)
 - [ ] **R3:** haptics, live spectating
 
 The sprint-by-sprint plan, decisions and risks are in **[Docs/ExecutionPlan.md](ExecutionPlan.md)**.

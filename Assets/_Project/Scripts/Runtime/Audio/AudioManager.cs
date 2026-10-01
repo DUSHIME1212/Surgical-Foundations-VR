@@ -113,6 +113,17 @@ namespace SurgicalFoundations.Audio
         /// <summary>Spatial one-shot at a world position.</summary>
         public AudioSource PlayAt(SoundId id, Vector3 position) => PlayInternal(id, position, true);
 
+        /// <summary>
+        /// A spoken line with no recording yet (the scrub nurse's reactions): shown as a subtitle for as long as it
+        /// would take to say. Swap for a recorded clip per line when the voice-over is produced.
+        /// </summary>
+        public void Say(string line)
+        {
+            if (string.IsNullOrEmpty(line)) return;
+            var words = line.Split(' ').Length;
+            SubtitleRequested?.Invoke(line, Mathf.Clamp(words * 0.38f, 1.8f, 6f));
+        }
+
         AudioSource PlayInternal(SoundId id, Vector3? position, bool forceSpatial)
         {
             var def = bank != null ? bank.Get(id) : null;

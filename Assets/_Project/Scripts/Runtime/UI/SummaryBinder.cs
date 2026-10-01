@@ -53,7 +53,8 @@ namespace SurgicalFoundations.UI
             var r = result.request;
             var mode = SessionManager.Instance != null ? SessionManager.Instance.Settings.mode : TrainingMode.Guided;
 
-            Set(eyebrow, $"Session complete · {mode} mode · {SessionManager.FormatClock(r.durationSeconds)}");
+            // Short enough for one line of the spaced, upper-case eyebrow style.
+            Set(eyebrow, $"{mode} mode · {SessionManager.FormatClock(r.durationSeconds)}");
             Set(passMark, result.criticalFailure
                 ? $"Overall · a critical step was missed · pass mark {result.passThreshold:0}"
                 : $"Overall · pass mark {result.passThreshold:0}");
@@ -66,13 +67,13 @@ namespace SurgicalFoundations.UI
                 var stage = r.stageScores.FirstOrDefault(s => s.stage == Stages[i]);
                 bars[i] = stage != null ? stage.score / 100f : 0f;
                 if (stageValues != null && i < stageValues.Length)
-                    Set(stageValues[i], stage != null ? $"{stage.score:0}" : "—");
+                    Set(stageValues[i], Mono(stage != null ? $"{stage.score:0}" : "—"));
             }
             if (motion != null) motion.SetValues(Mathf.RoundToInt(r.overallScore), bars);
 
             var played = r.stageScores.Where(s => s.stage != ScenarioStage.Summary).ToList();
             if (played.Count > 0) weakest = played.OrderBy(s => s.score).First().stage;
-            Set(retryLabel, $"Retry {weakest} stage");
+            Set(retryLabel, $"Retry {weakest}"); // "Retry Operate stage" is wider than the button
 
             for (int i = 0; i < (issueCards?.Length ?? 0); i++)
             {
@@ -83,7 +84,7 @@ namespace SurgicalFoundations.UI
                     if (i == 0) { SetAt(issueTimes, i, ""); SetAt(issueTitles, i, "No protocol issues — well done"); SetAt(issueMetas, i, ""); }
                     continue;
                 }
-                SetAt(issueTimes, i, SessionManager.FormatClock(issue.evt.sessionTime));
+                SetAt(issueTimes, i, Mono(SessionManager.FormatClock(issue.evt.sessionTime)));
                 SetAt(issueTitles, i, string.IsNullOrEmpty(issue.evt.message) ? issue.evt.code : issue.evt.message);
                 SetAt(issueMetas, i, $"{Label(issue.evt.eventClass)} · {issue.evt.stage} · −{issue.penalty:0} points");
                 if (issueMetas != null && i < issueMetas.Length && issueMetas[i] != null && theme != null)
@@ -113,6 +114,9 @@ namespace SurgicalFoundations.UI
         public void RetryWeakestStage() => ScenarioDirector.Instance?.RetryStage((int)weakest);
 
         static string Label(EventClass c) => c == EventClass.Deviation ? "Deviation" : c == EventClass.Delayed ? "Delayed" : c.ToString();
+
+        // The builder styles numbers with this monospacing; setting .text replaces its tags, so re-apply them.
+        static string Mono(string s) => $"<mspace=0.62em>{s}</mspace>";
 
         static void Set(TMP_Text t, string value) { if (t != null) t.text = value; }
         static void SetAt(TMP_Text[] ts, int i, string value) { if (ts != null && i < ts.Length) Set(ts[i], value); }

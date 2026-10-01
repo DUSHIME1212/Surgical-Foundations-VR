@@ -18,7 +18,18 @@ namespace SurgicalFoundations.UI
 
         int index = -1;
 
-        void Start() => Show(0);
+        /// <summary>The step being shown (−1 before the first).</summary>
+        public int Index => index;
+        public int StepCount => steps != null ? steps.Length : 0;
+        public event System.Action<int> StepShown;
+
+        void Start() { if (index < 0) Show(0); }
+
+        /// <summary>Drops a step's scripted voice line: detection plays it when the thing it describes really happens.</summary>
+        public void MuteVoice(int step)
+        {
+            if (voiceOnStep != null && step >= 0 && step < voiceOnStep.Length) voiceOnStep[step] = SoundId.None;
+        }
 
         public void Next() => GoTo(index + 1);
 
@@ -38,8 +49,9 @@ namespace SurgicalFoundations.UI
                 Core.SceneLoader.Instance?.TeleportTo(stepSpawns[index]);
             for (int s = 0; s < steps.Length; s++)
                 if (steps[s] != null) steps[s].SetActive(s == index);
-            if (voiceOnStep != null && index < voiceOnStep.Length && voiceOnStep[index] != SoundId.None)
+            if (previous != index && voiceOnStep != null && index < voiceOnStep.Length && voiceOnStep[index] != SoundId.None)
                 AudioManager.Instance?.Play(voiceOnStep[index]);
+            if (previous != index) StepShown?.Invoke(index);
         }
 
         public void LogOnProtocol(string message) => EventLogger.Instance?.Log(EventClass.OnProtocol, "demo.onprotocol", message);

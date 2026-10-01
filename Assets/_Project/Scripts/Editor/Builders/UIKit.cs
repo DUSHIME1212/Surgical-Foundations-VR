@@ -393,6 +393,46 @@ namespace SurgicalFoundations.EditorTools
             return rt;
         }
 
+        /// <summary>Checklist row driven at runtime by a <see cref="SurgicalFoundations.UI.ChecklistRow"/>; built in its pending state.</summary>
+        public static SurgicalFoundations.UI.ChecklistRow LiveCheckRow(Transform parent, string text, float height = 66)
+        {
+            var rt = HStack(parent, 20, "Row_" + Sanitize(text), TextAnchor.MiddleLeft, 18, 0);
+            var background = Fill(rt, card, T.accentSoft, 0.75f);
+            background.enabled = false;
+
+            // Ring and filled dot share one slot so the label doesn't shift when the state changes.
+            var slot = Rect("State", rt);
+            LE(slot, 34, 34, 0);
+            var ring = Icon(slot, circleOutline, 34, T.textMuted, "Ring");
+            var dot = Icon(slot, circle, 34, T.accent, "Dot");
+            var tick = Icon(dot.transform, Check, 22, T.onAccent, "Check");
+            foreach (var img in new[] { ring, dot, tick })
+            {
+                var r = (RectTransform)img.transform;
+                var le = img.GetComponent<LayoutElement>();
+                if (le != null) le.ignoreLayout = true;
+                r.anchorMin = r.anchorMax = new Vector2(0.5f, 0.5f);
+                r.sizeDelta = img == tick ? new Vector2(22, 22) : new Vector2(34, 34);
+                r.anchoredPosition = Vector2.zero;
+            }
+            dot.gameObject.SetActive(false);
+
+            var label = Text(rt, text, TS.Body, T.textPrimary, TextAlignmentOptions.Left, "Label");
+            LE(label, -1, -1, 1);
+            var trailing = Text(rt, "", TS.Mono, T.textSecondary, TextAlignmentOptions.Right, "Trailing");
+            LE(trailing, -1, -1, -1, -1, 110);
+            LE(rt, -1, height);
+
+            var row = rt.gameObject.AddComponent<SurgicalFoundations.UI.ChecklistRow>();
+            Ser.Set(row, "theme", T);
+            Ser.Set(row, "background", background);
+            Ser.Set(row, "ring", ring);
+            Ser.Set(row, "dot", dot);
+            Ser.Set(row, "label", label);
+            Ser.Set(row, "trailing", trailing);
+            return row;
+        }
+
         public static RectTransform KV(Transform parent, string key, string value, Color? valueColor = null, bool mono = false, float height = 52)
         {
             var rt = HStack(parent, 12, "KV_" + Sanitize(key));

@@ -120,12 +120,23 @@ In **Guided** mode this feedback appears in the moment, like a mentor at your sh
 
 **Connected to its server.** Learners sign in by scanning a QR code with their phone, or with a code from their learning platform, or train as a guest. The headset scores each run itself and shows the real result. It keeps every result safe while offline and uploads it when Wi-Fi returns; from there results reach the institution's learning platform (xAPI and SCORM). The lobby shows each learner's assignments and recent attempts. The server and the reasons behind its design are described in the [backend README](../Studium%20XR%20Backend/README.md).
 
+**It watches what the learner does.** The simulator recognises the scrub steps from hand movement, notices when a gloved hand touches something non-sterile, measures where the ports are marked and how each trocar goes in (angle, depth, force), spots an instrument drifting out of the camera's view, and will not let the patient be closed until every swab is counted. Each run is recorded and can be replayed from any angle. *Why this matters:* a score is only worth trusting if it comes from what the learner really did, and the same rules judge every learner the same way. The limits used are placeholders until a surgical educator signs them off, and they have been tested in the editor, not yet on a headset.
+
+**Instruments behave like the real thing.** Once an instrument is through a port it pivots about that point: move your hand left and the tip swings right, exactly the reversed, levered movement that makes keyhole surgery hard to learn. Jaws close as far as you squeeze, and instruments are swapped by pulling one out and passing another in. *Why this matters:* this hand-eye skill is the main thing a beginner has to build, and it can't be learned from a simulator that lets the instrument move freely.
+
+**The tasks are playable.** In the operating stage the learner moves six rings across a peg board, opens a tissue plane with the dissector, then clips and divides a duct, swapping instruments through the ports as they go. To finish, each port is taken out while its site is watched on the monitor, camera port last, and each site is closed with a stitch. Time, instrument path length and errors are recorded for every task. *Why this matters:* these are the building-block skills of keyhole surgery, and each rule the simulator enforces (clip before you cut, watch the port site as the port comes out) is one a trainee must make automatic before working on a patient.
+
+**Counts and complications are real steps.** Before draping, the learner points at each instrument and swab on the back table to agree the opening count. If a trocar goes in too deep, the session branches into a bleed at the port site: draw the trocar back, press on the site and hold, then let go and watch that it stays dry. The time to control it is recorded. *Why this matters:* a count agreed at the start is the only thing the closing count can be checked against, and how a trainee responds when something goes wrong tells an educator more than a clean run does.
+
+**A camera assistant holds the scope.** While operating, the learner asks for the view to be moved (left, right, up, down, closer, further) and the assistant moves the scope, leaving both hands free for instruments. They can also take the camera themselves. *Why this matters:* in a real operation someone else usually holds the camera, and directing them so the instruments stay in view is a skill of its own. The requests are recorded so an educator can see how the trainee managed their view.
+
+**Guided mode coaches, Assessment mode watches.** In Guided mode a single highlight shows what to reach for next and moves on as each step is recognised, and the scrub nurse turns to the learner and says a short line when something needs a word. In Assessment mode all of that is switched off; the same rules still judge the run. *Why this matters:* learners need help while a skill is new and none when they are being tested, and both modes must measure the same thing for the score to mean anything.
+
 **Coming next:**
 
-- Recognising the learner's actions automatically (scrub movements, sterile contacts, port angle and depth, counts). Today learners move on with a *Continue* button.
-- Recording sessions so learners and educators can replay them from any angle.
 - A web dashboard where institutions and learners follow progress. The server side of this is already built.
-- Later: realistic tissue that responds to instruments, bleeding complications, a virtual camera assistant and haptic feedback.
+- Soft tissue that deforms under the instruments (needs the Obi Softbody package).
+- Later: realistic tissue that tears, spoken camera commands and haptic feedback.
 
 ---
 

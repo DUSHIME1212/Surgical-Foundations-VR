@@ -623,11 +623,9 @@ namespace SurgicalFoundations.EditorTools
             var tray2 = FacingUI("UI_07_TrayAndDrape", ui, new Vector3(2.75f, 1.55f, -1.05f), tableEye);
             var tableStep = Spot(flow, "StepSpot_BackTable", tableSpot, 90f);
             Sequence(flow, new[] { scrub, steril, tray2 },
-                new[] { SoundId.VO_Prep_HandsAboveElbows, SoundId.VO_Prep_SterilityBroken, SoundId.None },
+                new[] { SoundId.VO_Prep_HandsAboveElbows, SoundId.None, SoundId.None }, // "sterility broken" plays on a real break (DetectionLog)
                 new Transform[] { null, tableStep, null });
-            Hands(scrub, HandLook.Bare, HandLook.Bare);
-            Hands(steril, HandLook.Contaminated, HandLook.Gloved);
-            Hands(tray2, HandLook.Gloved, HandLook.Gloved);
+            // Hand appearance in the theatre follows the real sterile state (SterilityMonitor), not the step being shown.
 
             Spawn(flow, sinkSpot, 180f);
             StageLighting();
@@ -661,7 +659,7 @@ namespace SurgicalFoundations.EditorTools
             blood.GetComponent<MeshRenderer>().sharedMaterial = MaterialLibrary.Get("FX_Blood");
             blood.AddComponent<ShaderPropertyAnimator>().Configure("_Spread", 0f, 0.85f, 8f, ShaderPropertyAnimator.Mode.Once, 0.5f);
             var branch = StepGroup("Step_BleedBranch", FacingUI("UI_10_BleedBranch", ui, new Vector3(-1.0f, 1.5f, 0.15f), LearnerEye), UI("UI_Monitor_Access", ui, MonitorScreen, 0), blood);
-            Sequence(flow, new[] { ports, entry, branch }, new[] { SoundId.VO_Access_MarkRightPort, SoundId.VO_Access_AngleShallow, SoundId.None });
+            Sequence(flow, new[] { ports, entry, branch }, new[] { SoundId.VO_Access_MarkRightPort, SoundId.None, SoundId.None });
             Hands(ports, HandLook.Gloved, HandLook.Gloved);
 
             Spawn(flow, new Vector3(0, 0, -0.85f), 0);
@@ -721,7 +719,7 @@ namespace SurgicalFoundations.EditorTools
 
             var count = FacingUI("UI_14_Count", ui, new Vector3(-1.05f, 1.5f, 0.1f), LearnerEye);
             var removal = StepGroup("Step_PortRemoval", FacingUI("UI_15_PortRemoval", ui, new Vector3(1.3f, 1.55f, 0.85f), LearnerEye), UI("UI_Monitor_Close", ui, MonitorScreen, 0));
-            Sequence(flow, new[] { count, removal }, new[] { SoundId.VO_Close_SwabMissing, SoundId.VO_Close_WatchPortSite });
+            Sequence(flow, new[] { count, removal }, new[] { SoundId.None, SoundId.VO_Close_WatchPortSite });
             Hands(count, HandLook.Gloved, HandLook.Gloved);
 
             Spawn(flow, new Vector3(0, 0, -0.85f), 0);

@@ -64,7 +64,7 @@ namespace SurgicalFoundations.UI
                 var a = i < attempts.Length ? attempts[i] : null;
                 Set(attemptKeys[i], a == null ? (i == 0 ? "No attempts yet" : "") : $"{Local(a.startedAtUnixMs):d MMM HH:mm} · {a.mode}");
                 if (attemptValues != null && i < attemptValues.Length)
-                    Set(attemptValues[i], a == null ? "" : a.status == SessionStatus.Completed ? $"{a.overallScore:0}" : "unfinished");
+                    Set(attemptValues[i], a == null ? "" : a.status == SessionStatus.Completed ? $"<mspace=0.62em>{a.overallScore:0}</mspace>" : "unfinished");
             }
             Set(attemptsFooter, guest ? "Sign in to keep a history of your attempts" : "Your most recent attempts, newest first");
             SetSync(s, guest);

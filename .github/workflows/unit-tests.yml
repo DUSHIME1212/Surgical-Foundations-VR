@@ -1,0 +1,84 @@
+name: unit-tests
+
+# Runs the EditMode tests (replay format, scoring, detection rules, fulcrum, tasks, camera) in a headless Unity editor.
+#
+# Secrets this needs (Settings → Secrets and variables → Actions):
+#   UNITY_LICENSE, UNITY_EMAIL, UNITY_PASSWORD   Unity licence activation, see https://game.ci/docs/github/activation
+#   BACKEND_REPO_TOKEN                           only if the backend repository is private: a token that can read it
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "Assets/**"
+      - "Packages/**"
+      - "ProjectSettings/**"
+      - ".github/workflows/unit-tests.yml"
+  pull_request:
+    paths:
+      - "Assets/**"
+      - "Packages/**"
+      - "ProjectSettings/**"
+      - ".github/workflows/unit-tests.yml"
+  workflow_dispatch:
+
+# A newer push to the same branch makes the older run pointless.
+concurrency:
+  group: unit-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  editmode:
+    name: EditMode tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      checks: write # the test runner publishes its results as a check on the commit
+    steps:
+      - name: Check out the Unity project
+        uses: actions/checkout@v4
+        with:
+          path: unity
+          lfs: true
+
+      # Packages/manifest.json takes the shared contracts from the backend repository by relative path
+      # ("file:../../Studium XR Backend/src/SurgicalFoundations.Contracts"), so it has to sit beside the project
+      # under exactly that folder name.
+      - name: Check out the backend (shared contracts)
+        uses: actions/checkout@v4
+        with:
+          repository: DUSHIME1212/Studium-XR-Backend
+          ref: master
+          path: Studium XR Backend
+          token: ${{ secrets.BACKEND_REPO_TOKEN || github.token }}
+
+      # Importing the project from scratch takes far longer than the tests themselves.
+      - name: Cache the Unity Library
+        uses: actions/cache@v4
+        with:
+          path: unity/Library
+          key: Library-${{ hashFiles('unity/Packages/packages-lock.json', 'unity/ProjectSettings/ProjectVersion.txt') }}
+          restore-keys: Library-
+
+      - name: Run EditMode tests
+        id: tests
+        uses: game-ci/unity-test-runner@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          projectPath: unity
+          unityVersion: auto # read from ProjectSettings/ProjectVersion.txt
+          testMode: editmode
+          githubToken: ${{ secrets.GITHUB_TOKEN }}
+          checkName: EditMode test results
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: editmode-test-results
+          path: ${{ steps.tests.outputs.artifactsPath }}
+          if-no-files-found: ignore
